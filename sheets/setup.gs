@@ -968,7 +968,8 @@ const SCHEMA = {
           "align": "center",
           "options": [
             "مكتمل",
-            "غير مكتمل"
+            "غير مكتمل",
+            "محذوف"
           ],
           "hidden": false,
           "emphasis": null
@@ -1753,7 +1754,7 @@ const BASE_ROWS = {
   ]
 };
 
-const VALUE_STYLES = {"مفتوح": ["E5F1E9", "1F6B2C", false], "مقفّل": ["EEE9E2", "4A423C", false], "مسودة": ["FDF0D5", "8A4B00", false], "معتمد": ["E5F1E9", "1F6B2C", false], "ملغى": ["EEE9E2", "6F655D", true], "ملغاة": ["EEE9E2", "6F655D", true], "فعّالة": ["E5F1E9", "1F6B2C", false], "مدفوع": ["E5F1E9", "1F6B2C", false], "جزئي": ["FDF0D5", "8A4B00", false], "غير مدفوع": ["FBE9EC", "A00B1E", false], "مكتمل": ["E5F1E9", "1F6B2C", false], "غير مكتمل": ["FDF0D5", "8A4B00", false], "نشط": ["E5F1E9", "1F6B2C", false], "معطّل": ["EEE9E2", "4A423C", false], "موقوف": ["EEE9E2", "4A423C", false], "نعم": ["E5F1E9", "1F6B2C", false], "لا": ["EEE9E2", "6F655D", false], "مدير": ["FBE9EC", "A00B1E", false], "موظف إدخال": ["E6EEF8", "1D4F91", false], "مشاهدة فقط": ["EEE9E2", "4A423C", false], "مباشر": ["EEE9E2", "4A423C", false], "عينة": ["E6EEF8", "1D4F91", false], "مزارع": ["FBE9EC", "A00B1E", false], "مورد": ["E5F1E9", "1F6B2C", false], "شراء رمان": ["FBE9EC", "A00B1E", false], "شراء تعبئة": ["E5F1E9", "1F6B2C", false], "إنشاء": ["E5F1E9", "1F6B2C", false], "تعديل": ["E6EEF8", "1D4F91", false], "إلغاء": ["EEE9E2", "4A423C", false], "تقفيل": ["FBE9EC", "A00B1E", false], "إعادة فتح": ["FDF0D5", "8A4B00", false], "دفعة": ["E5F1E9", "1F6B2C", false]};
+const VALUE_STYLES = {"مفتوح": ["E5F1E9", "1F6B2C", false], "مقفّل": ["EEE9E2", "4A423C", false], "مسودة": ["FDF0D5", "8A4B00", false], "معتمد": ["E5F1E9", "1F6B2C", false], "ملغى": ["EEE9E2", "6F655D", true], "ملغاة": ["EEE9E2", "6F655D", true], "فعّالة": ["E5F1E9", "1F6B2C", false], "مدفوع": ["E5F1E9", "1F6B2C", false], "جزئي": ["FDF0D5", "8A4B00", false], "غير مدفوع": ["FBE9EC", "A00B1E", false], "مكتمل": ["E5F1E9", "1F6B2C", false], "غير مكتمل": ["FDF0D5", "8A4B00", false], "محذوف": ["EEE9E2", "6F655D", true], "نشط": ["E5F1E9", "1F6B2C", false], "معطّل": ["EEE9E2", "4A423C", false], "موقوف": ["EEE9E2", "4A423C", false], "نعم": ["E5F1E9", "1F6B2C", false], "لا": ["EEE9E2", "6F655D", false], "مدير": ["FBE9EC", "A00B1E", false], "موظف إدخال": ["E6EEF8", "1D4F91", false], "مشاهدة فقط": ["EEE9E2", "4A423C", false], "مباشر": ["EEE9E2", "4A423C", false], "عينة": ["E6EEF8", "1D4F91", false], "مزارع": ["FBE9EC", "A00B1E", false], "مورد": ["E5F1E9", "1F6B2C", false], "شراء رمان": ["FBE9EC", "A00B1E", false], "شراء تعبئة": ["E5F1E9", "1F6B2C", false], "إنشاء": ["E5F1E9", "1F6B2C", false], "تعديل": ["E6EEF8", "1D4F91", false], "إلغاء": ["EEE9E2", "4A423C", false], "تقفيل": ["FBE9EC", "A00B1E", false], "إعادة فتح": ["FDF0D5", "8A4B00", false], "دفعة": ["E5F1E9", "1F6B2C", false]};
 
 const SUMMARY = {
   "cards": [

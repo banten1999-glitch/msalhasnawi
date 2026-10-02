@@ -954,7 +954,8 @@
           "align": "center",
           "options": [
             "مكتمل",
-            "غير مكتمل"
+            "غير مكتمل",
+            "محذوف"
           ],
           "hidden": false,
           "emphasis": null

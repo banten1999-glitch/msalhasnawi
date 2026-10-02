@@ -3,7 +3,7 @@
  * settings.get / settings.update and item types (docs/API.md section 6).
  */
 const test = require('node:test');
-const { assert, ok, adminEnv, auditRows, idNum } = require('./helpers');
+const { assert, ok, failField, adminEnv, auditRows, idNum, dataSnapshot, assertNothingWritten } = require('./helpers');
 
 function settingValue(env, key) {
   const row = env.readSheet('settings').find((r) => r['المفتاح'] === key);
@@ -61,4 +61,25 @@ test('itemTypes.list returns the base item types; itemTypes.save adds (id max+1)
   const after = ok(env.call(admin, 'itemTypes.list', {})).itemTypes;
   assert.equal(after.length, 10);
   assert.equal(after.find((t) => t.id === 'IT-02').active, false);
+});
+
+test('settings.update timezone: unknown zones are rejected (formatDate would silently use GMT); real zones accepted', () => {
+  const { env, admin } = adminEnv();
+  const before = dataSnapshot(env);
+  for (const tz of ['Africa/Cairoo', 'Mars/Olympus_Mons', 'Cairo', 'Africa/Cairo; DROP', '']) {
+    failField(env.call(admin, 'settings.update', { timezone: tz }), 'timezone', /المنطقة الزمنية/, `timezone ${JSON.stringify(tz)}`);
+  }
+  assertNothingWritten(env, before, 'invalid time zones');
+  assert.equal(ok(env.call(admin, 'settings.update', { timezone: 'Africa/Abidjan' })).timezone, 'Africa/Abidjan',
+    'a real zone whose offset is always zero is accepted');
+  assert.equal(ok(env.call(admin, 'settings.update', { timezone: 'Asia/Riyadh' })).timezone, 'Asia/Riyadh');
+  assert.equal(ok(env.call(admin, 'settings.update', { timezone: 'UTC' })).timezone, 'UTC');
+});
+
+test('an unknown time zone typed directly into the settings sheet falls back to Africa/Cairo', () => {
+  const { env, admin } = adminEnv();
+  const row = env.readSheet('settings').find((r) => r['المفتاح'] === 'المنطقة الزمنية');
+  env.setCell('settings', row._row, env.column('settings', 'القيمة'), 'Africa/Kairo');
+  const s = ok(env.call(admin, 'settings.get', {}));
+  assert.equal(s.timezone, 'Africa/Cairo');
 });

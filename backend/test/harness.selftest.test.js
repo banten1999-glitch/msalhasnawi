@@ -134,6 +134,8 @@ test('fake Utilities match Apps Script semantics', () => {
     out.f4 = Utilities.formatDate(d, 'Africa/Cairo', 'HH:mm');
     out.f5 = Utilities.formatDate(d, 'UTC', "yyyy-MM-dd'T'HH:mm:ssXXX");
     out.winter = Utilities.formatDate(new Date(Date.UTC(2026, 11, 2, 3, 40, 5)), 'Africa/Cairo', "yyyy-MM-dd'T'HH:mm:ssXXX");
+    out.unknownTz = Utilities.formatDate(d, 'Africa/Cairoo', "yyyy-MM-dd'T'HH:mm:ssXXX");
+    out.wrongCaseTz = Utilities.formatDate(d, 'africa/cairo', "yyyy-MM-dd'T'HH:mm:ssXXX");
     try { Utilities.formatDate(d, 'Africa/Cairo', 'dd/MM/yyyy'); out.badPattern = 'no error'; } catch (e) { out.badPattern = e.message; }
     out.ownerEmail = Session.getEffectiveUser().getEmail();
     out.scriptTz = Session.getScriptTimeZone();
@@ -155,6 +157,8 @@ test('fake Utilities match Apps Script semantics', () => {
   assert.equal(r.f4, '06:40');
   assert.equal(r.f5, '2026-10-02T03:40:05Z');
   assert.equal(r.winter, '2026-12-02T05:40:05+02:00');
+  assert.equal(r.unknownTz, '2026-10-02T03:40:05Z', 'unknown zone id: silently GMT, like Java TimeZone.getTimeZone');
+  assert.equal(r.wrongCaseTz, '2026-10-02T03:40:05Z', 'zone ids are case-sensitive');
   assert.match(r.badPattern, /not supported by the harness/);
   assert.equal(r.ownerEmail, 'owner@example.com');
   assert.equal(r.scriptTz, 'Africa/Cairo');
@@ -230,20 +234,31 @@ test('every execution starts with fresh globals (like a new Apps Script executio
 });
 
 test('backend sources, when present, load without errors in the documented order', (t) => {
-  const { backendFiles } = require('./harness');
+  const { backendFiles, BACKEND_DIST } = require('./harness');
   const files = backendFiles().map((f) => path.basename(f));
-  if (files.length === 0) {
+  if (files.length === 0 && !BACKEND_DIST) {
     t.skip('backend/src has no .gs files yet');
     return;
   }
   const env = createEnv(noBackend);
   const loaded = env.loadedFiles;
-  assert.equal(loaded[0], path.join('sheets', 'setup.gs'));
-  const names = loaded.slice(1).map((f) => path.basename(f));
-  const expectedHead = ['Config.gs', 'Util.gs'].filter((f) => files.includes(f));
-  assert.deepEqual(names.slice(0, expectedHead.length), expectedHead);
+  if (BACKEND_DIST) {
+    // Dist mode: the single deployable bundle is the only file loaded; its sections follow the same order.
+    assert.deepEqual(loaded, [path.relative(REPO_ROOT, BACKEND_DIST)]);
+    const sections = Array.from(fs.readFileSync(BACKEND_DIST, 'utf8').matchAll(/^\/\/ المصدر: (.+)$/gm), (m) => m[1]);
+    assert.equal(sections[0], 'sheets/setup.gs', 'bundle starts with setup.gs');
+    const names = sections.slice(1).map((f) => path.basename(f));
+    assert.deepEqual(names.slice(0, 2), ['Config.gs', 'Util.gs'], 'then Config.gs and Util.gs');
+    assert.deepEqual(names.slice(2), names.slice(2).slice().sort(), 'then the other sources by name');
+  } else {
+    assert.equal(loaded[0], path.join('sheets', 'setup.gs'));
+    const names = loaded.slice(1).map((f) => path.basename(f));
+    const expectedHead = ['Config.gs', 'Util.gs'].filter((f) => files.includes(f));
+    assert.deepEqual(names.slice(0, expectedHead.length), expectedHead);
+  }
   assert.equal(env.evaluate('typeof doPost', { withBackend: true }), 'function', 'doPost is defined');
   assert.equal(env.evaluate('typeof doGet', { withBackend: true }), 'function', 'doGet is defined');
+  assert.equal(env.evaluate('typeof setupRummanSheet', { withBackend: true }), 'function', 'setupRummanSheet is defined');
 });
 
 test('formatting calls found in setup.gs are chainable no-ops; data methods are never turned into no-ops', () => {

@@ -11,6 +11,11 @@ deployed. The build fails if two files declare the same top-level name, because 
 every file into one global scope and a duplicate `const`/`let`/`class` breaks the whole project.
 
 Usage:  python3 backend/build.py
+
+Verify the bundle afterwards:
+  node --check - < backend/dist/Code.gs          (Node 22 refuses ".gs" as a file argument; stdin works)
+  RUMMAN_BACKEND_DIST=1 node --test backend/test/ (the whole suite against Code.gs alone)
+backend/test/dist.test.js fails while backend/dist/ is older than its sources.
 """
 from __future__ import annotations
 

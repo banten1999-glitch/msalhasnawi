@@ -390,3 +390,20 @@ test('purchases.list filters by cooler, farmer and occurredAt range', () => {
   assert.deepEqual(ids({ from: '2026-09-05T00:00:00+03:00', to: '2026-09-15T00:00:00+03:00' }), [b.id]);
   assert.ok(idNum(c.id) > idNum(a.id));
 });
+
+test('purchases.create: payment is required ({ mode: full|partial|none }); nothing written without it', () => {
+  const { env, admin, cooler, farmer } = setup();
+  const before = dataSnapshot(env);
+  const base = purchasePayload(cooler, farmer);
+  delete base.payment;
+  failField(env.call(admin, 'purchases.create', base), 'payment', /الدفع/, 'payment missing');
+  failField(env.call(admin, 'purchases.create', Object.assign({}, base, { payment: null })), 'payment', /الدفع/, 'payment null');
+  failField(env.call(admin, 'purchases.create', Object.assign({}, base, { payment: 'full' })), 'payment', /الدفع/,
+    'payment not an object');
+  failField(env.call(admin, 'purchases.create', Object.assign({}, base, { payment: {} })), /mode/, /الدفع/, 'mode missing');
+  failField(env.call(admin, 'purchases.create', Object.assign({}, base, { payment: { mode: 'later' } })), /mode/, /الدفع/,
+    'unknown mode');
+  assertNothingWritten(env, before, 'purchase without a payment choice');
+  const d = buy(env, admin, cooler, farmer, { payment: { mode: 'full' } });
+  assert.equal(d.payment.method, 'cash', 'payment.method is optional (cash)');
+});

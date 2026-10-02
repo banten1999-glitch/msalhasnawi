@@ -497,7 +497,9 @@ function stCompensationChanges_(t, rec) {
     case 'farmers':
       return { 'الحالة': 'موقوف', 'ملاحظات': appendNote_(rec['ملاحظات'], reason) };
     case 'coolers':
-      return { 'ملاحظات': appendNote_(rec['ملاحظات'], reason) };
+      // لا توجد حالة «ملغى» للبراد: يُقفَل حتى لا يصبح «البراد الحالي» ولا تُضاف إليه مشتريات
+      // بينما تُنشئ إعادة المحاولة البراد الصحيح.
+      return { 'الحالة': 'مقفّل', 'ملاحظات': appendNote_(rec['ملاحظات'], reason) };
     case 'users':
       // البريد يُفرَّغ حتى تنجح إعادة المحاولة دون «بريد مكرر»، والصف يبقى معطّلًا للأثر.
       return {

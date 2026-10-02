@@ -5,8 +5,8 @@
  */
 const test = require('node:test');
 const {
-  assert, ok, fail, adminEnv, createEnv, newCooler, newFarmer, buy, snapshotIds, assertNoRowsLost, assertIsoInZone,
-  uuid, ADMIN, SCHEMA, BUSINESS_TZ,
+  assert, ok, fail, adminEnv, createEnv, newCooler, newFarmer, buy, pay, snapshotIds, assertNoRowsLost, assertIsoInZone,
+  approvedPackaging, saveDraft, userSession, uuid, ADMIN, SCHEMA, BUSINESS_TZ, ENTRY_ALL,
 } = require('./helpers');
 
 function sheetEntry(status, key) {
@@ -166,4 +166,61 @@ test('no bound spreadsheet and no SPREADSHEET_ID -> SHEET_NOT_CONFIGURED', () =>
   const res = env.post({ action: 'auth.login', session: null, requestId: uuid(),
     payload: { idToken: env.registerGoogleUser('karim@gmail.com') } });
   fail(res, 'SHEET_NOT_CONFIGURED');
+});
+
+test('sheet.repair on a full spreadsheet changes no cell of any data sheet and keeps extra sheets and columns', () => {
+  const { env, admin } = adminEnv();
+  const c = newCooler(env, admin, { name: 'براد' });
+  const f = newFarmer(env, admin, 'حسن البدري', { phone: '01001234567', village: 'أسيوط' });
+  const d = buy(env, admin, c, f, { payment: { mode: 'partial', amountPiasters: 100000, method: 'bank' } });
+  pay(env, admin, 'purchase', d.purchase.id, 5000);
+  approvedPackaging(env, admin, c, [{ name: 'الصناديق', quantity: 10, unit: 'قطعة', unitPricePiasters: 1500 }]);
+  saveDraft(env, admin, { supplier: 'مورد', items: [{ name: 'الشمبر', unit: 'رزمة' }] });
+  userSession(env, admin, 'karim@gmail.com', 'entry', ENTRY_ALL);
+  ok(env.call(admin, 'settings.update', { businessName: 'رمان الصعيد' }));
+  // The owner's own additions: an extra column with data, an extra sheet with notes, an empty extra sheet.
+  const sh = env.ss.getSheetByName('مشتريات الرمان');
+  const extraCol = sh.getLastColumn() + 1;
+  if (extraCol > sh.getMaxColumns()) sh.insertColumnsAfter(sh.getMaxColumns(), extraCol - sh.getMaxColumns());
+  sh.getRange(SCHEMA.headerRow, extraCol).setValue('ملاحظة المالك');
+  sh.getRange(SCHEMA.firstDataRow, extraCol).setValue('راجعت الوزن');
+  env.ss.insertSheet('ملاحظاتي').getRange(1, 1, 2, 2).setValues([['بند', 'قيمة'], ['إيجار', 500]]);
+  env.ss.insertSheet('Sheet9');
+  const titles = SCHEMA.sheets.map((def) => def.title).concat(['ملاحظاتي']);
+  const before = Object.fromEntries(titles.map((t) => [t, env.values(t)]));
+  const namesBefore = env.sheetNames();
+
+  const st = ok(env.call(admin, 'sheet.repair', {}), 'sheet.repair');
+  assert.equal(st.ok, true);
+  for (const t of titles) {
+    if (t === 'سجل التعديلات') continue;
+    assert.deepEqual(env.values(t), before[t], `${t}: every cell kept`);
+  }
+  const audit = env.values('سجل التعديلات');
+  assert.deepEqual(audit.slice(0, before['سجل التعديلات'].length), before['سجل التعديلات'], 'existing audit rows kept');
+  assert.equal(audit.length, before['سجل التعديلات'].length + 1, 'the repair adds exactly its own audit row');
+  assert.equal(env.readSheet('audit').pop()['نوع السجل'], 'ملف');
+  namesBefore.forEach((n) => assert.ok(env.sheetNames().includes(n), `sheet «${n}» kept`));
+  assert.ok(env.sheetNames().includes('Sheet9'), 'an empty extra sheet is not deleted by a request');
+  assert.deepEqual(env.world.log.deletedSheets.filter((x) => x.phase === 'request'), [], 'no deleteSheet during the request');
+  assert.deepEqual(sheetEntry(st, 'purchases').extraColumns, ['ملاحظة المالك']);
+  ok(env.call(admin, 'dashboard.get', { period: 'all' }), 'the data still reads after repair');
+});
+
+test('sheet.repair sets the file time zone only while the file has no records (changing it later shifts stored times)', () => {
+  const { env, admin } = adminEnv();
+  newCooler(env, admin);
+  env.ss.setSpreadsheetTimeZone('Etc/UTC');
+  const st = ok(env.call(admin, 'sheet.repair', {}));
+  assert.equal(env.spreadsheetState().tz, 'Etc/UTC', 'a file with records keeps its time zone');
+  assert.equal(st.timezone, 'Etc/UTC', 'SheetStatus reports the file time zone');
+
+  const empty = env.createSpreadsheet({ name: 'ملف فارغ', setup: false });
+  assert.equal(env.spreadsheetState(empty).tz, 'Etc/UTC');
+  const connected = ok(env.call(admin, 'sheet.connect', { spreadsheet: empty }), 'connect an empty file');
+  assert.equal(connected.ok, false, 'the empty file still needs a repair');
+  const repaired = ok(env.call(admin, 'sheet.repair', {}), 'repair the empty file');
+  assert.equal(repaired.ok, true);
+  assert.equal(env.spreadsheetState(empty).tz, BUSINESS_TZ, 'an empty file gets the business time zone');
+  assert.equal(repaired.timezone, BUSINESS_TZ);
 });

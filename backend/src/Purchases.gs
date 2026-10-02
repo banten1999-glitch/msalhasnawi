@@ -108,13 +108,16 @@ function purchasesCacheColumns_(rec) {
   };
 }
 
-/** يعيد كتابة الأعمدة المخزنة إن اختلفت. */
+/**
+ * يعيد كتابة الأعمدة المخزنة (المدفوع/المتبقي/حالة الدفع) إن اختلفت.
+ * العقد §7: كل كتابة على الصف تزيد «الإصدار» وتضع «آخر تعديل/عدّلها»، فتسجيل دفعة أو إلغاؤها
+ * يغيّر إصدار العملية أيضًا (والرد يعيد العملية المحدّثة في target).
+ */
 function purchasesSyncCache_(rec, opts) {
   const c = purchasesCacheColumns_(rec);
   const diff = auditDiff_(rec, c);
   if (!diff.changed) return false;
-  // أعمدة مشتقة من الدفعات: لا تغيّر إصدار العملية ولا «آخر تعديل».
-  stUpdate_(stTable_('purchases'), rec, c, Object.assign({ bump: false, stamp: false }, opts || {}));
+  stUpdate_(stTable_('purchases'), rec, c, opts || {});
   return true;
 }
 
@@ -258,10 +261,10 @@ function purchasesCreateAction_(p, user, req) {
   if (!hasFarmerId && !hasNewName) {
     failValidation_('farmerId', '«المزارع» مطلوب. اختره من القائمة أو اكتب اسم مزارع جديد.');
   }
-  let pay = p.payment;
-  if (pay === undefined || pay === null) pay = { mode: 'none' };
+  // payment مطلوب في العقد §6 (ليس اختياريًا)، حتى لا يضيع اختيار «دفع كامل» بسبب خطأ في التطبيق.
+  const pay = p.payment;
   if (!isPlainObject_(pay)) {
-    failValidation_('payment', '«الدفع» يجب أن يحدد طريقة الدفع (كامل أو جزئي أو بدون). حدّث التطبيق ثم أعد المحاولة.');
+    failValidation_('payment', '«الدفع مع الشراء» مطلوب. اختر «دفع كامل» أو «دفع جزئي» أو «بدون دفع» ثم أعد المحاولة.');
   }
   const mode = inEnum_(pay.mode, 'payment.mode', 'طريقة الدفع مع الشراء', RMN_PAY_MODES, { required: true });
   if (hasNewName) requirePermission(user, 'addFarmers');

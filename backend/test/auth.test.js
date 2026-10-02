@@ -5,8 +5,8 @@
 const test = require('node:test');
 const {
   assert, ok, fail, adminEnv, addUser, userSession, createEnv, uuid, decodeSession, signSession, auditRows,
-  assertIsoInZone, isDate, idNum, show, CLIENT_IDS, ADMIN, BUSINESS_TZ, PERMISSION_KEYS, PERMISSION_COLUMNS,
-  ENTRY_ALL,
+  assertIsoInZone, isDate, idNum, show, dataSnapshot, assertNothingWritten, CLIENT_IDS, ADMIN, BUSINESS_TZ,
+  PERMISSION_KEYS, PERMISSION_COLUMNS, ENTRY_ALL,
 } = require('./helpers');
 
 const DAY_S = 86400;
@@ -252,6 +252,46 @@ test('tampered session tokens -> AUTH_EXPIRED', () => {
   fail(env.call('garbage-token', 'auth.me', {}), 'AUTH_EXPIRED', 'not a token');
   fail(env.call(`${part}.${sig}.extra`, 'auth.me', {}), 'AUTH_EXPIRED', 'three parts');
   ok(env.call(admin, 'auth.me', {}), 'the genuine token still works');
+});
+
+test('session tampering cannot escalate: forged payloads are rejected on mutations and nothing is written', () => {
+  const { env, admin } = adminEnv();
+  const viewer = userSession(env, admin, 'viewer@gmail.com', 'viewer');
+  const { payload: vp, parts } = decodeSession(viewer.token);
+  const { payload: ap } = decodeSession(admin.token);
+  const before = dataSnapshot(env);
+  // The viewer swaps in the admin identity but cannot produce the HMAC.
+  const asAdmin = Object.assign({}, vp, { uid: ap.uid, email: ap.email, uv: ap.uv });
+  const forgedPart = signSession(asAdmin, 'guess').split('.')[0];
+  fail(env.call(`${forgedPart}.${parts[1]}`, 'coolers.create', { name: 'x' }), 'AUTH_EXPIRED', 'admin identity, viewer signature');
+  fail(env.call(signSession(asAdmin, 'guess'), 'users.add', { email: 'evil@gmail.com', name: 'x', role: 'admin' }),
+    'AUTH_EXPIRED', 'admin identity, wrong secret');
+  fail(env.call(`${parts[0]}.${decodeSession(admin.token).parts[1]}`, 'coolers.create', { name: 'x' }), 'AUTH_EXPIRED',
+    'viewer payload with the admin signature');
+  const lowerCaseSig = `${parts[0]}.${parts[1].toLowerCase()}`;
+  if (lowerCaseSig !== viewer.token) fail(env.call(lowerCaseSig, 'auth.me', {}), 'AUTH_EXPIRED', 'signature case changed');
+  assertNothingWritten(env, before, 'forged sessions');
+  fail(env.call(viewer, 'coolers.create', { name: 'x' }), 'FORBIDDEN', 'the genuine viewer token is still only a viewer');
+});
+
+test('a session signed with an old SESSION_SECRET is rejected after the secret is deleted (log everyone out)', () => {
+  const { env, admin } = adminEnv();
+  ok(env.call(admin, 'auth.me', {}));
+  env.props.delete('SESSION_SECRET');
+  fail(env.call(admin, 'auth.me', {}), 'AUTH_EXPIRED', 'old token after the secret was removed');
+  assert.ok(env.props.get('SESSION_SECRET'), 'a new secret is generated on first use');
+  const again = env.loginAs(ADMIN);
+  ok(env.call(again, 'auth.me', {}), 'a new login works with the new secret');
+});
+
+test('a correctly signed session whose row now holds another email is not accepted', () => {
+  const { env, admin } = adminEnv();
+  const k = userSession(env, admin, 'karim@gmail.com', 'entry', ENTRY_ALL);
+  env.updateRow('users', k.added.id, { 'البريد (Gmail)': 'someone.else@gmail.com' });
+  env.clock.advance(61 * 1000);
+  const e = fail(env.call(k, 'coolers.create', { name: 'x' }), ['NOT_ALLOWED', 'SESSION_STALE']);
+  if (e.code === 'NOT_ALLOWED') assert.equal(e.details.reason, 'not_listed');
+  assert.equal(env.readSheet('coolers').length, 0);
 });
 
 test('expired session: SESSION_DAYS=0 -> AUTH_EXPIRED', () => {

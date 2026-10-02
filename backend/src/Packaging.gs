@@ -102,12 +102,12 @@ function packagingCacheColumns_(rec) {
   };
 }
 
+/** يعيد كتابة الأعمدة المخزنة إن اختلفت. كل كتابة تزيد «الإصدار» وتضع «آخر تعديل» (العقد §7). */
 function packagingSyncCache_(rec, opts) {
   const c = packagingCacheColumns_(rec);
   const diff = auditDiff_(rec, c);
   if (!diff.changed) return false;
-  // أعمدة مشتقة من الأصناف والدفعات: لا تغيّر إصدار الشراء ولا «آخر تعديل».
-  stUpdate_(stTable_('packaging'), rec, c, Object.assign({ bump: false, stamp: false }, opts || {}));
+  stUpdate_(stTable_('packaging'), rec, c, opts || {});
   return true;
 }
 

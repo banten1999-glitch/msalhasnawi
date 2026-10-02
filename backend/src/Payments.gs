@@ -142,7 +142,7 @@ function paymentsCreateAction_(p, user, req) {
     const rec = stFindById_(stTable_('purchases'), targetId);
     if (!rec) failNotFound_('targetId', 'عملية الشراء', targetId);
     if (!purchaseIsActive_(rec)) {
-      failValidation_('targetId', 'عملية الشراء ' + targetId + ' ملغاة، فلا يمكن الدفع لها.');
+      failValidation_('targetId', 'عملية الشراء ' + targetId + ' ملغاة، فلا يمكن الدفع لها. حدّث البيانات واختر عملية شراء فعّالة.');
     }
     total = purchaseMeasures_(rec).valuePiasters;
     const farmerId = cellStr_(rec['معرّف المزارع']);

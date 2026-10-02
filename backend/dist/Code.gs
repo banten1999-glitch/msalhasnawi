@@ -4084,7 +4084,11 @@ function coolersCloseAction_(p) {
   stRequire_(stDataKeys_().concat(['audit']));
   const t = stTable_('coolers');
   const id = inId_(p.id, 'id', 'البراد');
-  const pending = inInt_(p.clientPendingCount, 'clientPendingCount', 'عدد العمليات بانتظار المزامنة', { min: 0, max: 100000 }) || 0;
+  // مطلوب (العقد §6 لا يعلّمه اختياريًا): بدونه لا نعرف إن كان على الجهاز عمليات لم تُرسل بعد.
+  const pending = inInt_(p.clientPendingCount, 'clientPendingCount', 'عدد العمليات بانتظار المزامنة', {
+    required: true, min: 0, max: 100000,
+    hint: 'حدّث التطبيق، وانتظر حتى تُرسل كل العمليات بانتظار المزامنة، ثم أعد التقفيل.',
+  });
   if (pending > 0) {
     failValidation_('clientPendingCount',
       'توجد ' + pending + ' عمليات بانتظار المزامنة على هذا الجهاز. انتظر حتى تُرسل كلها (أو اتصل بالإنترنت) ثم أعد التقفيل.',
@@ -4722,12 +4726,13 @@ function mainHandle_(e) {
     req.requestId = mainRequestId_(req.requestId);
     rq.requestId = req.requestId;
     const cacheKey = RMN_CFG.requestCachePrefix + req.requestId;
-    const cached = cacheGet_(cacheKey);
+    const owner = mainCacheOwner_(session);
+    const cached = mainCachedResult_(cacheKey, owner);
     if (cached) return cached;
 
     return mainWithLock_(function () {
       rq.now = new Date();
-      const again = cacheGet_(cacheKey);
+      const again = mainCachedResult_(cacheKey, owner);
       if (again) return again;
       const user = authVerifySession_(req.session, session);
       if (spec.perm) requirePermission(user, spec.perm);
@@ -4742,13 +4747,34 @@ function mainHandle_(e) {
       }
       if (rq.wrote) stBumpDataVersion_();
       const text = mainJson_(mainOk_(data));
-      cachePut_(cacheKey, text, RMN_CFG.requestCacheSeconds);
+      cachePut_(cacheKey, JSON.stringify({ owner: owner, text: text }), RMN_CFG.requestCacheSeconds);
       return text;
     });
   } catch (err) {
     if (rq.journal && rq.journal.length) mainCompensate_();
     return mainJson_(mainErrorEnvelope_(err));
   }
+}
+
+/** صاحب النتيجة المحفوظة: من الجلسة الموقّعة نفسها (لا يحتاج قراءة الملف). */
+function mainCacheOwner_(session) {
+  return String(session.uid || '') + '|' + String(session.email || '').trim().toLowerCase();
+}
+
+/**
+ * نتيجة طلب سابق بنفس requestId (العقد §7) تُعاد كما هي، لكن لصاحبها فقط: مستخدم آخر يعرف المعرّف
+ * لا يحصل على نتيجة غيره دون فحص صلاحياته، بل يمر طلبه بالفحوص كاملة.
+ */
+function mainCachedResult_(cacheKey, owner) {
+  const raw = cacheGet_(cacheKey);
+  if (!raw) return null;
+  try {
+    const entry = JSON.parse(raw);
+    if (entry && entry.owner === owner && typeof entry.text === 'string') return entry.text;
+  } catch (e) {
+    // قيمة تالفة: نتجاهلها ونكمل الطلب بالفحوص كاملة.
+  }
+  return null;
 }
 
 /** بعد إجراء بلا قفل كتب شيئًا (مثل إضافة المدير الأساسي عند الدخول). */
@@ -5014,12 +5040,12 @@ function packagingCacheColumns_(rec) {
   };
 }
 
+/** يعيد كتابة الأعمدة المخزنة إن اختلفت. كل كتابة تزيد «الإصدار» وتضع «آخر تعديل» (العقد §7). */
 function packagingSyncCache_(rec, opts) {
   const c = packagingCacheColumns_(rec);
   const diff = auditDiff_(rec, c);
   if (!diff.changed) return false;
-  // أعمدة مشتقة من الأصناف والدفعات: لا تغيّر إصدار الشراء ولا «آخر تعديل».
-  stUpdate_(stTable_('packaging'), rec, c, Object.assign({ bump: false, stamp: false }, opts || {}));
+  stUpdate_(stTable_('packaging'), rec, c, opts || {});
   return true;
 }
 
@@ -5471,7 +5497,7 @@ function paymentsCreateAction_(p, user, req) {
     const rec = stFindById_(stTable_('purchases'), targetId);
     if (!rec) failNotFound_('targetId', 'عملية الشراء', targetId);
     if (!purchaseIsActive_(rec)) {
-      failValidation_('targetId', 'عملية الشراء ' + targetId + ' ملغاة، فلا يمكن الدفع لها.');
+      failValidation_('targetId', 'عملية الشراء ' + targetId + ' ملغاة، فلا يمكن الدفع لها. حدّث البيانات واختر عملية شراء فعّالة.');
     }
     total = purchaseMeasures_(rec).valuePiasters;
     const farmerId = cellStr_(rec['معرّف المزارع']);
@@ -5652,13 +5678,16 @@ function purchasesCacheColumns_(rec) {
   };
 }
 
-/** يعيد كتابة الأعمدة المخزنة إن اختلفت. */
+/**
+ * يعيد كتابة الأعمدة المخزنة (المدفوع/المتبقي/حالة الدفع) إن اختلفت.
+ * العقد §7: كل كتابة على الصف تزيد «الإصدار» وتضع «آخر تعديل/عدّلها»، فتسجيل دفعة أو إلغاؤها
+ * يغيّر إصدار العملية أيضًا (والرد يعيد العملية المحدّثة في target).
+ */
 function purchasesSyncCache_(rec, opts) {
   const c = purchasesCacheColumns_(rec);
   const diff = auditDiff_(rec, c);
   if (!diff.changed) return false;
-  // أعمدة مشتقة من الدفعات: لا تغيّر إصدار العملية ولا «آخر تعديل».
-  stUpdate_(stTable_('purchases'), rec, c, Object.assign({ bump: false, stamp: false }, opts || {}));
+  stUpdate_(stTable_('purchases'), rec, c, opts || {});
   return true;
 }
 
@@ -5802,10 +5831,10 @@ function purchasesCreateAction_(p, user, req) {
   if (!hasFarmerId && !hasNewName) {
     failValidation_('farmerId', '«المزارع» مطلوب. اختره من القائمة أو اكتب اسم مزارع جديد.');
   }
-  let pay = p.payment;
-  if (pay === undefined || pay === null) pay = { mode: 'none' };
+  // payment مطلوب في العقد §6 (ليس اختياريًا)، حتى لا يضيع اختيار «دفع كامل» بسبب خطأ في التطبيق.
+  const pay = p.payment;
   if (!isPlainObject_(pay)) {
-    failValidation_('payment', '«الدفع» يجب أن يحدد طريقة الدفع (كامل أو جزئي أو بدون). حدّث التطبيق ثم أعد المحاولة.');
+    failValidation_('payment', '«الدفع مع الشراء» مطلوب. اختر «دفع كامل» أو «دفع جزئي» أو «بدون دفع» ثم أعد المحاولة.');
   }
   const mode = inEnum_(pay.mode, 'payment.mode', 'طريقة الدفع مع الشراء', RMN_PAY_MODES, { required: true });
   if (hasNewName) requirePermission(user, 'addFarmers');
@@ -6289,16 +6318,34 @@ const RMN_SETTING_DEFAULTS = Object.freeze({
   seasonStart: null,
 });
 
-/** هل النص منطقة زمنية صالحة (مثل Africa/Cairo)؟ */
+// مناطق إزاحتها صفر طوال السنة. Utilities.formatDate لا يرمي خطأ لاسم منطقة غير معروف بل يستخدم
+// GMT بصمت، لذلك لا نقبل منطقة إزاحتها صفر في يناير ويوليو معًا إلا إن كانت في هذه القائمة.
+const RMN_ZERO_OFFSET_ZONES = Object.freeze([
+  'UTC', 'GMT', 'Etc/UTC', 'Etc/GMT', 'Etc/UCT', 'Etc/Universal', 'Etc/Zulu', 'Etc/Greenwich', 'Etc/GMT0',
+  'Etc/GMT+0', 'Etc/GMT-0', 'Africa/Abidjan', 'Africa/Accra', 'Africa/Bamako', 'Africa/Banjul', 'Africa/Bissau',
+  'Africa/Conakry', 'Africa/Dakar', 'Africa/Freetown', 'Africa/Lome', 'Africa/Monrovia', 'Africa/Nouakchott',
+  'Africa/Ouagadougou', 'Africa/Sao_Tome', 'Africa/Timbuktu', 'America/Danmarkshavn', 'Atlantic/Reykjavik',
+  'Atlantic/St_Helena',
+]);
+
+/** هل النص منطقة زمنية معروفة (مثل Africa/Cairo)؟ */
 function settingsValidTz_(tz) {
   if (typeof tz !== 'string') return false;
   const s = tz.trim();
   if (!/^(?:UTC|GMT|[A-Za-z]+(?:\/[A-Za-z0-9_+\-]+){1,2})$/.test(s)) return false;
+  let offsets;
   try {
-    return /^\d{4}-\d{2}-\d{2}T/.test(Utilities.formatDate(new Date(), s, RMN_CFG.fmtIso));
+    const y = new Date().getUTCFullYear();
+    offsets = [new Date(Date.UTC(y, 0, 15, 12)), new Date(Date.UTC(y, 6, 15, 12))].map(function (d) {
+      const iso = Utilities.formatDate(d, s, RMN_CFG.fmtIso);
+      if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(iso)) throw new Error('bad format');
+      return iso.slice(19);
+    });
   } catch (e) {
     return false;
   }
+  const alwaysZero = offsets.every(function (o) { return o === 'Z' || o === '+00:00' || o === '-00:00'; });
+  return !alwaysZero || RMN_ZERO_OFFSET_ZONES.indexOf(s) >= 0;
 }
 
 /** صفوف الإعدادات: {المفتاح: السجل}. */
@@ -6536,6 +6583,13 @@ function sheetParseId_(raw) {
   return '';
 }
 
+/** هل الملف بلا سجلات تحمل أوقاتًا؟ (الإعدادات وأصناف التعبئة لا تُحسب). */
+function sheetHasNoRecords_(status) {
+  return status.sheets.every(function (s) {
+    return s.key === 'settings' || s.key === 'item_types' || !s.exists || s.rows === 0;
+  });
+}
+
 // =====================================================================================
 // الإجراءات
 // =====================================================================================
@@ -6549,10 +6603,17 @@ function sheetRepairAction_() {
   const ss = stSpreadsheet_();
   const before = sheetStatus_();
   const tz = rqTzSafe_();
-  try {
-    ss.setSpreadsheetTimeZone(tz);
-  } catch (e) {
-    // ليس شرطًا للإصلاح.
+  // تغيير المنطقة الزمنية للملف يُبقي «ساعة الحائط» المخزنة في خلايا التاريخ ويغيّر اللحظة التي تمثلها،
+  // فيُزيح كل الأوقات المسجلة. لذلك تُضبط فقط ما دام الملف بلا سجلات (ملف جديد).
+  const fresh = sheetHasNoRecords_(before);
+  let tzChanged = false;
+  if (fresh && ss.getSpreadsheetTimeZone() !== tz) {
+    try {
+      ss.setSpreadsheetTimeZone(tz);
+      tzChanged = true;
+    } catch (e) {
+      // ليس شرطًا للإصلاح.
+    }
   }
   SCHEMA.sheets.forEach(function (def, i) {
     // الموضع لا يتجاوز عدد الصفحات الحالي حتى لا يفشل insertSheet.
@@ -6570,8 +6631,9 @@ function sheetRepairAction_() {
     }).join('؛ ')
     : 'إعادة تنسيق ملف البيانات (لم يكن ينقصه شيء)';
   auditAdd_('تعديل', 'ملف', ss.getId(), desc,
-    { missing: fixed.map(function (s) { return { sheet: s.title, exists: s.exists, columns: s.missingColumns }; }) },
-    { repaired: true, timezone: tz }, '');
+    { missing: fixed.map(function (s) { return { sheet: s.title, exists: s.exists, columns: s.missingColumns }; }),
+      timezone: before.timezone },
+    { repaired: true, timezone: tzChanged ? tz : before.timezone }, '');
   auditFlush_();
   return sheetStatus_();
 }
@@ -7137,7 +7199,9 @@ function stCompensationChanges_(t, rec) {
     case 'farmers':
       return { 'الحالة': 'موقوف', 'ملاحظات': appendNote_(rec['ملاحظات'], reason) };
     case 'coolers':
-      return { 'ملاحظات': appendNote_(rec['ملاحظات'], reason) };
+      // لا توجد حالة «ملغى» للبراد: يُقفَل حتى لا يصبح «البراد الحالي» ولا تُضاف إليه مشتريات
+      // بينما تُنشئ إعادة المحاولة البراد الصحيح.
+      return { 'الحالة': 'مقفّل', 'ملاحظات': appendNote_(rec['ملاحظات'], reason) };
     case 'users':
       // البريد يُفرَّغ حتى تنجح إعادة المحاولة دون «بريد مكرر»، والصف يبقى معطّلًا للأثر.
       return {

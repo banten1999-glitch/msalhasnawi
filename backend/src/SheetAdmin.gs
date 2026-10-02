@@ -88,6 +88,13 @@ function sheetParseId_(raw) {
   return '';
 }
 
+/** هل الملف بلا سجلات تحمل أوقاتًا؟ (الإعدادات وأصناف التعبئة لا تُحسب). */
+function sheetHasNoRecords_(status) {
+  return status.sheets.every(function (s) {
+    return s.key === 'settings' || s.key === 'item_types' || !s.exists || s.rows === 0;
+  });
+}
+
 // =====================================================================================
 // الإجراءات
 // =====================================================================================
@@ -101,10 +108,17 @@ function sheetRepairAction_() {
   const ss = stSpreadsheet_();
   const before = sheetStatus_();
   const tz = rqTzSafe_();
-  try {
-    ss.setSpreadsheetTimeZone(tz);
-  } catch (e) {
-    // ليس شرطًا للإصلاح.
+  // تغيير المنطقة الزمنية للملف يُبقي «ساعة الحائط» المخزنة في خلايا التاريخ ويغيّر اللحظة التي تمثلها،
+  // فيُزيح كل الأوقات المسجلة. لذلك تُضبط فقط ما دام الملف بلا سجلات (ملف جديد).
+  const fresh = sheetHasNoRecords_(before);
+  let tzChanged = false;
+  if (fresh && ss.getSpreadsheetTimeZone() !== tz) {
+    try {
+      ss.setSpreadsheetTimeZone(tz);
+      tzChanged = true;
+    } catch (e) {
+      // ليس شرطًا للإصلاح.
+    }
   }
   SCHEMA.sheets.forEach(function (def, i) {
     // الموضع لا يتجاوز عدد الصفحات الحالي حتى لا يفشل insertSheet.
@@ -122,8 +136,9 @@ function sheetRepairAction_() {
     }).join('؛ ')
     : 'إعادة تنسيق ملف البيانات (لم يكن ينقصه شيء)';
   auditAdd_('تعديل', 'ملف', ss.getId(), desc,
-    { missing: fixed.map(function (s) { return { sheet: s.title, exists: s.exists, columns: s.missingColumns }; }) },
-    { repaired: true, timezone: tz }, '');
+    { missing: fixed.map(function (s) { return { sheet: s.title, exists: s.exists, columns: s.missingColumns }; }),
+      timezone: before.timezone },
+    { repaired: true, timezone: tzChanged ? tz : before.timezone }, '');
   auditFlush_();
   return sheetStatus_();
 }

@@ -136,12 +136,13 @@ function mainHandle_(e) {
     req.requestId = mainRequestId_(req.requestId);
     rq.requestId = req.requestId;
     const cacheKey = RMN_CFG.requestCachePrefix + req.requestId;
-    const cached = cacheGet_(cacheKey);
+    const owner = mainCacheOwner_(session);
+    const cached = mainCachedResult_(cacheKey, owner);
     if (cached) return cached;
 
     return mainWithLock_(function () {
       rq.now = new Date();
-      const again = cacheGet_(cacheKey);
+      const again = mainCachedResult_(cacheKey, owner);
       if (again) return again;
       const user = authVerifySession_(req.session, session);
       if (spec.perm) requirePermission(user, spec.perm);
@@ -156,13 +157,34 @@ function mainHandle_(e) {
       }
       if (rq.wrote) stBumpDataVersion_();
       const text = mainJson_(mainOk_(data));
-      cachePut_(cacheKey, text, RMN_CFG.requestCacheSeconds);
+      cachePut_(cacheKey, JSON.stringify({ owner: owner, text: text }), RMN_CFG.requestCacheSeconds);
       return text;
     });
   } catch (err) {
     if (rq.journal && rq.journal.length) mainCompensate_();
     return mainJson_(mainErrorEnvelope_(err));
   }
+}
+
+/** صاحب النتيجة المحفوظة: من الجلسة الموقّعة نفسها (لا يحتاج قراءة الملف). */
+function mainCacheOwner_(session) {
+  return String(session.uid || '') + '|' + String(session.email || '').trim().toLowerCase();
+}
+
+/**
+ * نتيجة طلب سابق بنفس requestId (العقد §7) تُعاد كما هي، لكن لصاحبها فقط: مستخدم آخر يعرف المعرّف
+ * لا يحصل على نتيجة غيره دون فحص صلاحياته، بل يمر طلبه بالفحوص كاملة.
+ */
+function mainCachedResult_(cacheKey, owner) {
+  const raw = cacheGet_(cacheKey);
+  if (!raw) return null;
+  try {
+    const entry = JSON.parse(raw);
+    if (entry && entry.owner === owner && typeof entry.text === 'string') return entry.text;
+  } catch (e) {
+    // قيمة تالفة: نتجاهلها ونكمل الطلب بالفحوص كاملة.
+  }
+  return null;
 }
 
 /** بعد إجراء بلا قفل كتب شيئًا (مثل إضافة المدير الأساسي عند الدخول). */

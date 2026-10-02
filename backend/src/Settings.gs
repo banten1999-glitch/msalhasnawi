@@ -25,16 +25,34 @@ const RMN_SETTING_DEFAULTS = Object.freeze({
   seasonStart: null,
 });
 
-/** هل النص منطقة زمنية صالحة (مثل Africa/Cairo)؟ */
+// مناطق إزاحتها صفر طوال السنة. Utilities.formatDate لا يرمي خطأ لاسم منطقة غير معروف بل يستخدم
+// GMT بصمت، لذلك لا نقبل منطقة إزاحتها صفر في يناير ويوليو معًا إلا إن كانت في هذه القائمة.
+const RMN_ZERO_OFFSET_ZONES = Object.freeze([
+  'UTC', 'GMT', 'Etc/UTC', 'Etc/GMT', 'Etc/UCT', 'Etc/Universal', 'Etc/Zulu', 'Etc/Greenwich', 'Etc/GMT0',
+  'Etc/GMT+0', 'Etc/GMT-0', 'Africa/Abidjan', 'Africa/Accra', 'Africa/Bamako', 'Africa/Banjul', 'Africa/Bissau',
+  'Africa/Conakry', 'Africa/Dakar', 'Africa/Freetown', 'Africa/Lome', 'Africa/Monrovia', 'Africa/Nouakchott',
+  'Africa/Ouagadougou', 'Africa/Sao_Tome', 'Africa/Timbuktu', 'America/Danmarkshavn', 'Atlantic/Reykjavik',
+  'Atlantic/St_Helena',
+]);
+
+/** هل النص منطقة زمنية معروفة (مثل Africa/Cairo)؟ */
 function settingsValidTz_(tz) {
   if (typeof tz !== 'string') return false;
   const s = tz.trim();
   if (!/^(?:UTC|GMT|[A-Za-z]+(?:\/[A-Za-z0-9_+\-]+){1,2})$/.test(s)) return false;
+  let offsets;
   try {
-    return /^\d{4}-\d{2}-\d{2}T/.test(Utilities.formatDate(new Date(), s, RMN_CFG.fmtIso));
+    const y = new Date().getUTCFullYear();
+    offsets = [new Date(Date.UTC(y, 0, 15, 12)), new Date(Date.UTC(y, 6, 15, 12))].map(function (d) {
+      const iso = Utilities.formatDate(d, s, RMN_CFG.fmtIso);
+      if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(iso)) throw new Error('bad format');
+      return iso.slice(19);
+    });
   } catch (e) {
     return false;
   }
+  const alwaysZero = offsets.every(function (o) { return o === 'Z' || o === '+00:00' || o === '-00:00'; });
+  return !alwaysZero || RMN_ZERO_OFFSET_ZONES.indexOf(s) >= 0;
 }
 
 /** صفوف الإعدادات: {المفتاح: السجل}. */

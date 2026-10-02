@@ -38,7 +38,7 @@ class NumberText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // الأرقام السالبة تُعزل باتجاه LTR حتى تبقى علامة السالب بجانب الرقم داخل نص عربي.
-    final shown = text.startsWith('-') ? '⁦$text⁩' : text;
+    final shown = text.startsWith('-') ? '\u2066$text\u2069' : text;
     final deco = strike ? TextDecoration.lineThrough : null;
     return Text.rich(
       TextSpan(

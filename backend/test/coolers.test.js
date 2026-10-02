@@ -256,3 +256,17 @@ test('coolers.reopen: reason required, keeps the snapshot, audit إعادة فت
   assert.equal(a['السبب'], 'نسيت شحنة');
   buy(env, admin, c, f, { boxes: 3 });
 });
+
+test('coolers.close: clientPendingCount is required (payload { id, expectedVersion, clientPendingCount })', () => {
+  const { env, admin } = adminEnv();
+  const c = newCooler(env, admin);
+  const before = dataSnapshot(env);
+  failField(env.call(admin, 'coolers.close', { id: c.id, expectedVersion: c.version }), 'clientPendingCount', /مزامنة/,
+    'missing clientPendingCount');
+  failField(env.call(admin, 'coolers.close', { id: c.id, expectedVersion: c.version, clientPendingCount: -1 }),
+    'clientPendingCount', /مزامنة/, 'negative clientPendingCount');
+  failField(env.call(admin, 'coolers.close', { id: c.id, expectedVersion: c.version, clientPendingCount: 'x' }),
+    'clientPendingCount', /مزامنة/, 'non-numeric clientPendingCount');
+  assertNothingWritten(env, before, 'close without a valid pending count');
+  assert.equal(closeCooler(env, admin, c).status, 'closed', 'clientPendingCount 0 closes');
+});

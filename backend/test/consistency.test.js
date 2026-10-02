@@ -7,7 +7,7 @@ const test = require('node:test');
 const {
   assert, ok, fail, adminEnv, newCooler, newFarmer, buy, pay, closeCooler, getPurchase, purchasePayload, saveDraft,
   auditRows, snapshotIds, assertNoRowsLost, assertLockedAndFlushed, dataSnapshot, assertNothingWritten, isDate,
-  assertIsoInZone, idNum, uuid, ENTRY_ALL, BUSINESS_TZ,
+  assertIsoInZone, idNum, uuid, userSession, ENTRY_ALL, BUSINESS_TZ, ADMIN,
 } = require('./helpers');
 
 function without(obj, key) {
@@ -334,4 +334,97 @@ test('timestamps written by the backend are real dates; API timestamps are ISO i
   const row = env.findRow('purchases', p.id);
   ['تاريخ ووقت العملية', 'تاريخ الإنشاء الفعلي'].forEach((h) => assert.ok(isDate(row[h]), `${h} is a Date cell`));
   assert.ok(isDate(env.findRow('coolers', c.id)['تاريخ ووقت الفتح']));
+});
+
+test('every write bumps الإصدار: recording or cancelling a payment bumps the target purchase/packaging version', () => {
+  const { env, admin } = adminEnv();
+  const c = newCooler(env, admin);
+  const f = newFarmer(env, admin, 'حسن');
+  const p = buy(env, admin, c, f).purchase;
+  assert.equal(p.version, 1);
+  const d = pay(env, admin, 'purchase', p.id, 1000);
+  assert.equal(d.target.version, 2, 'payments.create updated the purchase row, so its version increases');
+  const row = env.findRow('purchases', p.id);
+  assert.equal(row['الإصدار'], 2);
+  assert.ok(isDate(row['آخر تعديل']), 'آخر تعديل set on the purchase row');
+  assert.ok(String(row['عدّلها']).length > 0, 'عدّلها set on the purchase row');
+  // An edit based on the version read before the payment is now a conflict (the paid amount changed).
+  const e = fail(env.call(admin, 'purchases.update', { id: p.id, expectedVersion: 1, changes: { boxes: 51 } }), 'CONFLICT');
+  assert.equal(e.details.currentVersion, 2);
+  assert.equal(e.details.current.paidPiasters, 1000);
+  ok(env.call(admin, 'purchases.update', { id: p.id, expectedVersion: d.target.version, changes: { boxes: 51 } }),
+    'the version returned in target is the current one');
+  const cancelled = ok(env.call(admin, 'payments.cancel', { id: d.payment.id, reason: 'خطأ' }));
+  assert.equal(cancelled.target.version, 4, 'payments.cancel bumps the purchase version again');
+  assert.equal(env.findRow('purchases', p.id)['الإصدار'], 4);
+
+  const draft = saveDraft(env, admin, { supplier: 'مورد', coolerId: c.id,
+    items: [{ name: 'الصناديق', quantity: 10, unit: 'قطعة', unitPricePiasters: 500 }] });
+  const appr = ok(env.call(admin, 'packaging.approve', { id: draft.packaging.id, expectedVersion: draft.packaging.version }));
+  const pp = pay(env, admin, 'packaging', appr.packaging.id, 100);
+  assert.equal(pp.target.version, appr.packaging.version + 1, 'packaging version bumped by its payment');
+  assert.equal(env.findRow('packaging', appr.packaging.id)['الإصدار'], appr.packaging.version + 1);
+});
+
+test('idempotent replay writes nothing: no second row and no second audit row (cache hit and key-column hit)', () => {
+  const { env, admin } = adminEnv();
+  const c = newCooler(env, admin);
+  const f = newFarmer(env, admin, 'حسن');
+  const cases = [
+    ['purchases.create', purchasePayload(c, f, { payment: { mode: 'partial', amountPiasters: 500, method: 'cash' } })],
+    ['payments.create', null],
+    ['packaging.save', { supplier: 'مورد', items: [{ name: 'الصناديق', quantity: 2, unit: 'قطعة', unitPricePiasters: 10 }] }],
+  ];
+  let purchaseId = null;
+  for (const [action, base] of cases) {
+    const payload = base || { targetType: 'purchase', targetId: purchaseId, amountPiasters: 100, method: 'cash' };
+    const rid = uuid();
+    const first = ok(env.call(admin, action, payload, rid), `${action} first`);
+    if (action === 'purchases.create') purchaseId = first.purchase.id;
+    const before = dataSnapshot(env);
+    ok(env.call(admin, action, payload, rid), `${action} repeat (cache)`);
+    assert.equal(env.lastRequest.writes.length, 0, `${action}: a cached repeat writes nothing`);
+    env.cache.clear();
+    const again = ok(env.call(admin, action, payload, rid), `${action} repeat (key column)`);
+    assert.equal(again.replayed, true, `${action}: replayed through مفتاح عدم التكرار`);
+    assertNothingWritten(env, before, `${action} replays`);
+  }
+});
+
+test('a cached result is returned only to the session that produced it; another user goes through every check', () => {
+  const { env, admin } = adminEnv();
+  const viewer = userSession(env, admin, 'viewer@gmail.com', 'viewer');
+  const rid = uuid();
+  const created = ok(env.call(admin, 'coolers.create', { name: 'براد المدير' }, rid));
+  const before = dataSnapshot(env);
+  const e = fail(env.call(viewer, 'coolers.create', { name: 'براد المدير' }, rid), 'FORBIDDEN',
+    'a viewer reusing the admin requestId');
+  assert.equal(e.details.permission, 'recordPurchases');
+  assertNothingWritten(env, before, 'viewer replay');
+  const again = ok(env.call(admin, 'coolers.create', { name: 'براد المدير' }, rid), 'the owner still gets the cached result');
+  assert.deepEqual(again, created);
+  const relogin = env.loginAs(ADMIN);
+  assert.deepEqual(ok(env.call(relogin, 'coolers.create', { name: 'براد المدير' }, rid)), created,
+    'same user with a new session token: same cached result');
+  assert.equal(env.readSheet('coolers').length, 1);
+});
+
+test('partial failure in coolers.create: the cooler row is kept but closed, so it never becomes the current cooler', () => {
+  const { env, admin } = adminEnv();
+  const rid = uuid();
+  env.failWrites('audit', { times: 1 });
+  fail(env.call(admin, 'coolers.create', { name: 'براد' }, rid), 'INTERNAL');
+  const rows = env.readSheet('coolers');
+  assert.equal(rows.length, 1, 'the row written before the failure is kept (records are never deleted)');
+  assert.equal(rows[0]['الحالة'], 'مقفّل', 'compensated cooler is closed');
+  assert.match(String(rows[0]['ملاحظات']), /تعذّر إكمال الحفظ/);
+  assert.ok(env.props.get('LAST_ERROR'));
+  const retry = ok(env.call(admin, 'coolers.create', { name: 'براد' }, rid), 'retry with the same requestId').cooler;
+  assert.equal(retry.status, 'open');
+  const d = ok(env.call(admin, 'dashboard.get', { period: 'all' }));
+  assert.equal(d.currentCooler && d.currentCooler.id, retry.id, 'the retried cooler is the current one');
+  assert.deepEqual(d.openCoolers.map((x) => x.id), [retry.id]);
+  const f = newFarmer(env, admin, 'حسن');
+  fail(env.call(admin, 'purchases.create', purchasePayload({ id: rows[0]['المعرّف'] }, f)), 'COOLER_CLOSED',
+    'no purchases can land in the compensated cooler');
 });

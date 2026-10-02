@@ -152,7 +152,11 @@ function coolersCloseAction_(p) {
   stRequire_(stDataKeys_().concat(['audit']));
   const t = stTable_('coolers');
   const id = inId_(p.id, 'id', 'البراد');
-  const pending = inInt_(p.clientPendingCount, 'clientPendingCount', 'عدد العمليات بانتظار المزامنة', { min: 0, max: 100000 }) || 0;
+  // مطلوب (العقد §6 لا يعلّمه اختياريًا): بدونه لا نعرف إن كان على الجهاز عمليات لم تُرسل بعد.
+  const pending = inInt_(p.clientPendingCount, 'clientPendingCount', 'عدد العمليات بانتظار المزامنة', {
+    required: true, min: 0, max: 100000,
+    hint: 'حدّث التطبيق، وانتظر حتى تُرسل كل العمليات بانتظار المزامنة، ثم أعد التقفيل.',
+  });
   if (pending > 0) {
     failValidation_('clientPendingCount',
       'توجد ' + pending + ' عمليات بانتظار المزامنة على هذا الجهاز. انتظر حتى تُرسل كلها (أو اتصل بالإنترنت) ثم أعد التقفيل.',

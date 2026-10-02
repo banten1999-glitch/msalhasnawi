@@ -25,6 +25,17 @@ const SCHEMA_JSON = path.join(REPO_ROOT, 'sheets', 'schema.json');
 const BACKEND_SRC = process.env.RUMMAN_BACKEND_SRC
   ? path.resolve(process.env.RUMMAN_BACKEND_SRC)
   : path.join(REPO_ROOT, 'backend', 'src');
+const DIST_CODE = path.join(REPO_ROOT, 'backend', 'dist', 'Code.gs');
+/**
+ * RUMMAN_BACKEND_DIST=1 (or a path to a bundle): every execution loads backend/dist/Code.gs ALONE, the
+ * single deployable file built by backend/build.py (sheets/setup.gs + backend/src/*.gs), instead of
+ * sheets/setup.gs followed by the separate sources. Unset (default): setup.gs + backend/src/*.gs.
+ */
+const BACKEND_DIST = (() => {
+  const v = process.env.RUMMAN_BACKEND_DIST;
+  if (!v || /^(0|false|no)$/i.test(v)) return null;
+  return /^(1|true|yes)$/i.test(v) ? DIST_CODE : path.resolve(v);
+})();
 
 const SCHEMA = JSON.parse(fs.readFileSync(SCHEMA_JSON, 'utf8'));
 const SUMMARY_TITLE = 'لوحة الملخص';
@@ -290,16 +301,29 @@ function installFakeAppsScript(world, host, setupFormatting) {
 
   // ----- time zones --------------------------------------------------------------------------
   const dtfCache = {};
+  function makeDtf(zone) {
+    return new Intl.DateTimeFormat('en-US', { timeZone: zone, hourCycle: 'h23', year: 'numeric',
+      month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+  // Java's TimeZone.getTimeZone (used by Utilities.formatDate) silently falls back to GMT for an unknown
+  // id, and its ids are case-sensitive ("africa/cairo" is unknown). It never throws.
   function safeTz(tz) {
     const key = String(tz);
     if (dtfCache[key]) return key;
+    let dtf = null;
     try {
-      dtfCache[key] = new Intl.DateTimeFormat('en-US', { timeZone: key, hourCycle: 'h23', year: 'numeric',
-        month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      return key;
+      dtf = makeDtf(key);
+      const resolved = dtf.resolvedOptions().timeZone;
+      if (resolved !== key && resolved.toLowerCase() === key.toLowerCase()) dtf = null; // only the case differs
     } catch (e) {
-      return 'Etc/UTC'; // Java's TimeZone.getTimeZone falls back to GMT for unknown ids.
+      dtf = null;
     }
+    if (dtf) {
+      dtfCache[key] = dtf;
+      return key;
+    }
+    if (!dtfCache['Etc/UTC']) dtfCache['Etc/UTC'] = makeDtf('Etc/UTC');
+    return 'Etc/UTC';
   }
   function partsIn(ms, tz) {
     const f = dtfCache[safeTz(tz)];
@@ -851,7 +875,10 @@ function backendFiles() {
 }
 function compileScripts() {
   if (compiled) return compiled;
-  const files = [SETUP_GS].concat(backendFiles());
+  if (BACKEND_DIST && !fs.existsSync(BACKEND_DIST)) {
+    throw new Error(`RUMMAN_BACKEND_DIST: ${BACKEND_DIST} does not exist. Run: python3 backend/build.py`);
+  }
+  const files = BACKEND_DIST ? [BACKEND_DIST] : [SETUP_GS].concat(backendFiles());
   compiled = files.map((file) => ({
     file,
     rel: path.relative(REPO_ROOT, file),
@@ -859,7 +886,9 @@ function compileScripts() {
   }));
   return compiled;
 }
-const SETUP_ONLY = () => compileScripts().filter((s) => s.file === SETUP_GS);
+// In dist mode the bundle is the only file, so "setup only" executions load it too (its backend part only
+// defines functions and constants at load time).
+const SETUP_ONLY = () => (BACKEND_DIST ? compileScripts() : compileScripts().filter((s) => s.file === SETUP_GS));
 
 // ---------------------------------------------------------------------------------------------
 // Host-side value conversion.
@@ -1309,5 +1338,8 @@ module.exports = {
   SUMMARY_TITLE,
   REPO_ROOT,
   BACKEND_SRC,
+  BACKEND_DIST,
+  DIST_CODE,
+  SETUP_GS,
   backendFiles,
 };

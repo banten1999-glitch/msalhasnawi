@@ -1057,7 +1057,9 @@ function createEnv(options) {
         aud,
         sub: String(o.sub || ('1' + crypto.randomInt(1e9, 9e9) + crypto.randomInt(1e9, 9e9))),
         email,
-        email_verified: typeof verified === 'string' ? verified : String(!!verified),
+        // tokeninfo answers with strings; `emailVerifiedRaw` lets a test send a JSON boolean instead.
+        email_verified: o.emailVerifiedRaw !== undefined ? o.emailVerifiedRaw
+          : (typeof verified === 'string' ? verified : String(!!verified)),
         at_hash: crypto.randomBytes(8).toString('base64url'),
         iat: String(nowS - 5),
         exp: String(o.exp === undefined ? nowS + 3600 : o.exp),

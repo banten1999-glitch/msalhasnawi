@@ -54,8 +54,8 @@
 | المنصة | Client ID | يجب أن يطابق في Google Cloud |
 |---|---|---|
 | الويب | `833981951758-668sjormn0kp8lm4e8c0ioltdr0ctip8` | أصول JavaScript المصرح بها: رابط موقع التطبيق، و`http://localhost` للتجربة |
-| iPhone | `833981951758-pb57t33tr66q4b8c3r9tsd3gnbs4doi5` | Bundle ID: `com.alhasnawi.rummanCalculator` |
-| Android | `833981951758-c4f37gpodur13gg933ka3hi14359alg1` | Package name: `com.alhasnawi.rumman_calculator` + بصمة SHA-1 لمفتاح التوقيع |
+| iPhone | `833981951758-pb57t33tr66q4b8c3r9tsd3gnbs4doi5` | Bundle ID: `com.hasnawi.mysheetapp` |
+| Android | `833981951758-c4f37gpodur13gg933ka3hi14359alg1` | Package name: `com.hasnawi.mysheetapp` + بصمة SHA-1 لمفتاح التوقيع |
 
 ## تشغيل التطبيق
 

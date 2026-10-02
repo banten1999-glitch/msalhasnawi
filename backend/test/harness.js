@@ -32,6 +32,37 @@ const OWNER_EMAIL = 'owner@example.com';
 const SCRIPT_TIME_ZONE = 'Africa/Cairo';
 const EXEC_TIMEOUT_MS = 20000;
 
+// In Apps Script the JavaScript engine's local time zone is the script time zone, so
+// `new Date(y, m, d)` and getHours() work in Africa/Cairo. Mirror that for the whole test process
+// (set RUMMAN_KEEP_TZ=1 to keep the machine's zone).
+if (!process.env.RUMMAN_KEEP_TZ) process.env.TZ = SCRIPT_TIME_ZONE;
+
+// Range/Sheet/Spreadsheet methods that are implemented with real behaviour. They must never be
+// turned into formatting no-ops, even if a future setup.gs calls them on another object type.
+const DATA_METHODS = new Set(['getRange', 'getValues', 'getValue', 'setValues', 'setValue', 'setFormula',
+  'setFormulas', 'clearContent', 'clear', 'appendRow', 'getLastRow', 'getLastColumn', 'getMaxRows',
+  'getMaxColumns', 'insertRowsAfter', 'insertColumnsAfter', 'insertSheet', 'deleteSheet', 'getSheetByName',
+  'getSheets', 'getId', 'getName', 'getUrl', 'getSpreadsheetTimeZone', 'setSpreadsheetTimeZone', 'toast',
+  'setActiveSheet', 'moveActiveSheet', 'getFilter', 'createFilter', 'setNumberFormat', 'setDataValidation']);
+const FORMATTING_PREFIX = /^(set|clear|hide|show|unhide|merge|break|auto|activate)/;
+
+/**
+ * Formatting calls made by sheets/setup.gs, found by scanning its source. They become chainable
+ * no-ops on Range, Sheet and Spreadsheet so a regenerated setup.gs keeps working in the fake.
+ * Data methods are excluded: calling an unimplemented data method still throws.
+ */
+function formattingCallsInSetup() {
+  const src = fs.readFileSync(SETUP_GS, 'utf8');
+  const names = new Set();
+  const re = /\.([A-Za-z_$][\w$]*)\s*\(/g;
+  let m;
+  while ((m = re.exec(src)) !== null) {
+    if (FORMATTING_PREFIX.test(m[1]) && !DATA_METHODS.has(m[1])) names.add(m[1]);
+  }
+  return Array.from(names).sort();
+}
+const SETUP_FORMATTING = Object.freeze(formattingCallsInSetup());
+
 const CLIENT_IDS = Object.freeze({
   web: '833981951758-668sjormn0kp8lm4e8c0ioltdr0ctip8.apps.googleusercontent.com',
   ios: '833981951758-pb57t33tr66q4b8c3r9tsd3gnbs4doi5.apps.googleusercontent.com',
@@ -81,7 +112,7 @@ const hostBridge = Object.freeze({
 // The fake Apps Script services. This function is serialised with toString() and evaluated
 // inside every vm context, so it must not reference anything from this module's scope.
 // ---------------------------------------------------------------------------------------------
-function installFakeAppsScript(world, host) {
+function installFakeAppsScript(world, host, setupFormatting) {
   'use strict';
   const G = globalThis;
   const RealDate = G.Date;
@@ -157,6 +188,13 @@ function installFakeAppsScript(world, host) {
     'clearConditionalFormatRules', 'setFrozenRows', 'setFrozenColumns', 'setHiddenGridlines',
     'autoResizeColumn', 'autoResizeColumns', 'autoResizeRows', 'clearFormats', 'activate',
   ]);
+  const SPREADSHEET_FORMATTING = new Set();
+  // Every formatting call found in setup.gs is accepted on all three object types.
+  (setupFormatting || []).forEach((name) => {
+    RANGE_FORMATTING.add(name);
+    SHEET_FORMATTING.add(name);
+    SPREADSHEET_FORMATTING.add(name);
+  });
 
   // ----- cell storage ------------------------------------------------------------------------
   function findRect(list, r, c) {
@@ -587,7 +625,7 @@ function installFakeAppsScript(world, host) {
         ssState.sheets.splice(Math.min(pos - 1, ssState.sheets.length), 0, st);
       },
     };
-    return strict(obj, 'Spreadsheet', null);
+    return strict(obj, 'Spreadsheet', SPREADSHEET_FORMATTING);
   }
 
   // ----- builders ----------------------------------------------------------------------------
@@ -630,15 +668,22 @@ function installFakeAppsScript(world, host) {
       SOLID_THICK: 'SOLID_THICK', DOUBLE: 'DOUBLE' }),
   }, 'SpreadsheetApp', null);
 
+  // world.lock.busy: false, true (always busy) or a number of lock attempts that still fail.
+  function lockIsBusy() {
+    const b = world.lock.busy;
+    if (b === true) return true;
+    if (typeof b === 'number' && b > 0) { world.lock.busy = b - 1; return true; }
+    return false;
+  }
   const lockObj = strict({
     waitLock(timeoutMs) {
       world.log.lock.push({ seq: nextSeq(), phase: world.phase, op: 'waitLock', ms: timeoutMs });
-      if (world.lock.busy) throw gasError('Lock timeout: another process was holding the lock for too long.');
+      if (lockIsBusy()) throw gasError('Lock timeout: another process was holding the lock for too long.');
       world.lock.held = true;
     },
     tryLock(timeoutMs) {
       world.log.lock.push({ seq: nextSeq(), phase: world.phase, op: 'tryLock', ms: timeoutMs });
-      if (world.lock.busy) return false;
+      if (lockIsBusy()) return false;
       world.lock.held = true;
       return true;
     },
@@ -885,7 +930,7 @@ function newExecution(world, withBackend) {
   });
   const ctx = vm.createContext({ console: sandboxConsole }, { name: 'apps-script-execution' });
   const install = INSTALL_SCRIPT.runInContext(ctx);
-  const control = install(world, hostBridge);
+  const control = install(world, hostBridge, SETUP_FORMATTING);
   const scripts = withBackend ? compileScripts() : SETUP_ONLY();
   for (const s of scripts) {
     try {
@@ -1204,8 +1249,9 @@ function createEnv(options) {
       clear() { Object.keys(world.cache).forEach((k) => { delete world.cache[k]; }); },
     },
     lock: {
-      setBusy(busy) { world.lock.busy = !!busy; },
-      isBusy() { return world.lock.busy; },
+      /** true: every waitLock throws / tryLock fails; a number n: only the next n attempts fail. */
+      setBusy(busy) { world.lock.busy = typeof busy === 'number' ? busy : !!busy; },
+      isBusy() { return world.lock.busy === true || (typeof world.lock.busy === 'number' && world.lock.busy > 0); },
       isHeld() { return world.lock.held; },
       ops() { return world.log.lock.slice(); },
     },
@@ -1253,6 +1299,7 @@ function sheetLastCol(sh) {
 
 module.exports = {
   createEnv,
+  SETUP_FORMATTING,
   toHost,
   sheetTitle,
   SCHEMA,

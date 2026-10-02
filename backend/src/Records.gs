@@ -33,7 +33,7 @@ function dmItemFields_(rec) {
 function dmIndex_() {
   const rq = rq_();
   if (rq.index) return rq.index;
-  stRequire_(['coolers', 'farmers', 'purchases', 'payments', 'packaging', 'packaging_items']);
+  stRequire_(stDataKeys_());
   const ix = {
     coolers: Object.create(null),
     farmers: Object.create(null),
@@ -129,4 +129,40 @@ function dmByTimeDesc_(getTime, getId) {
     const ib = getId(b);
     return ia < ib ? 1 : (ia > ib ? -1 : 0);
   };
+}
+
+/** يحذف الحقول المساعدة (التي تبدأ بـ _) قبل الإرسال. */
+function dmStripPrivate_(obj) {
+  const out = {};
+  Object.keys(obj).forEach(function (k) {
+    if (k.charAt(0) !== '_') out[k] = obj[k];
+  });
+  return out;
+}
+
+/** مجموع الدفعات الفعّالة لعملية (من الصفحة المحفوظة في الذاكرة، بعد آخر كتابة). */
+function dmActivePaid_(targetId) {
+  const want = cellStr_(targetId);
+  let sum = 0;
+  stTable_('payments').rows.forEach(function (r) {
+    if (cellStr_(r['معرّف العملية']) !== want) return;
+    if (enumToApi_('recordStatus', r['الحالة'], 'active') !== 'active') return;
+    sum += cellMoney_(r['المبلغ (ج.م)']) || 0;
+  });
+  return sum;
+}
+
+/** عدد الدفعات الفعّالة لعملية. */
+function dmActivePaymentsCount_(targetId) {
+  const want = cellStr_(targetId);
+  let n = 0;
+  stTable_('payments').rows.forEach(function (r) {
+    if (cellStr_(r['معرّف العملية']) === want && enumToApi_('recordStatus', r['الحالة'], 'active') === 'active') n++;
+  });
+  return n;
+}
+
+/** اسم المستخدم من عمود «الاسم (البريد)»، والبريد منه. */
+function dmWho_(label) {
+  return { name: labelName_(label), email: labelEmail_(label) };
 }

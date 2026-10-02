@@ -15,13 +15,13 @@ function farmerToApi_(rec) {
   };
 }
 
-/** رقم هاتف اختياري: أرقام مع + ومسافات وشرطات، 6 إلى 20 رقمًا. */
+/** رقم هاتف اختياري: أرقام مع + ومسافات وشرطات وأقواس، حتى 20 رقمًا. يُحفظ نصًا كما كُتب. */
 function farmersPhoneInput_(v, field) {
   const raw = inStr_(v, field, 'رقم الهاتف', { max: 30 });
   if (!raw) return '';
   const s = digitsToLatin_(raw).replace(/\s+/g, ' ').trim();
   const digits = s.replace(/\D/g, '');
-  if (!/^\+?[\d\s\-()]+$/.test(s) || digits.length < 6 || digits.length > 20) {
+  if (!/^\+?[\d\s\-()]+$/.test(s) || digits.length < 1 || digits.length > 20) {
     failValidation_(field, 'رقم الهاتف «' + raw + '» غير صحيح. اكتب الأرقام فقط مثل 01001234567.');
   }
   return s;
@@ -35,7 +35,10 @@ function farmersFindDuplicate_(name, excludeId, activeOnly) {
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i];
     if (excludeId && cellStr_(r['المعرّف']) === excludeId) continue;
-    if (activeOnly && enumToApi_('farmerStatus', r['الحالة'], 'active') !== 'active') continue;
+    const inactive = enumToApi_('farmerStatus', r['الحالة'], 'active') !== 'active';
+    if (activeOnly && inactive) continue;
+    // صف أُلغي تعويضًا عن حفظ فاشل لا يمنع إعادة المحاولة.
+    if (inactive && cellStr_(r['ملاحظات']).indexOf(RMN_CFG.compensationReason) >= 0) continue;
     if (normText_(r['الاسم']) === want) return r;
   }
   return null;
@@ -92,7 +95,7 @@ function farmersListAction_(p) {
 /** farmers.create {name, phone?, village?, notes?, allowDuplicate?} */
 function farmersCreateAction_(p) {
   stRequire_(['farmers', 'audit']);
-  const name = inStr_(p.name, 'name', 'اسم المزارع', { required: true, max: 80 });
+  const name = inStr_(p.name, 'name', 'الاسم', { required: true, max: 80, hint: 'اكتب اسم المزارع ثم أعد المحاولة.' });
   const phone = farmersPhoneInput_(p.phone, 'phone');
   const village = inStr_(p.village, 'village', 'القرية / المنطقة', { max: 80 });
   const notes = inStr_(p.notes, 'notes', 'الملاحظات', { max: 1000, multiline: true });
@@ -116,7 +119,7 @@ function farmersUpdateAction_(p) {
 
   const c = {};
   if (p.name !== undefined) {
-    const name = inStr_(p.name, 'name', 'اسم المزارع', { required: true, max: 80 });
+    const name = inStr_(p.name, 'name', 'الاسم', { required: true, max: 80, hint: 'اكتب اسم المزارع ثم أعد المحاولة.' });
     const allowDuplicate = inBool_(p.allowDuplicate, 'allowDuplicate', 'السماح بالاسم المكرر', false);
     const dup = farmersFindDuplicate_(name, id, false);
     if (dup && !allowDuplicate) farmersDuplicateError_('name', dup);

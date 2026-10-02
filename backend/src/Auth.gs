@@ -22,13 +22,15 @@ function authVerifyGoogleToken_(idToken) {
   try {
     resp = UrlFetchApp.fetch(RMN_CFG.tokenInfoUrl + encodeURIComponent(idToken), { muteHttpExceptions: true });
   } catch (e) {
+    // العقد: أي رد غير 200 ⇒ AUTH_INVALID_TOKEN. نسجل السبب للتشخيص.
     cfgRecordError_('tokeninfo fetch failed: ' + (e && e.message ? e.message : e));
-    throw apiError_('INTERNAL', 'تعذّر الاتصال بخدمة Google للتحقق من الحساب. تأكد من الاتصال ثم أعد المحاولة بعد قليل.', null, {});
+    throw authInvalidToken_('تعذّر الاتصال بخدمة Google للتحقق من حسابك. تأكد من الاتصال ثم سجّل الدخول مرة أخرى بعد قليل.',
+      'unavailable');
   }
   const code = resp.getResponseCode();
   if (code >= 500) {
     cfgRecordError_('tokeninfo HTTP ' + code);
-    throw apiError_('INTERNAL', 'خدمة Google للتحقق من الحساب لا ترد الآن. أعد المحاولة بعد قليل.', null, {});
+    throw authInvalidToken_('خدمة Google للتحقق من الحساب لا ترد الآن. سجّل الدخول مرة أخرى بعد قليل.', 'unavailable');
   }
   if (code !== 200) {
     throw authInvalidToken_('رفضت Google رمز الدخول (ربما انتهت صلاحيته). سجّل الدخول بحساب Google مرة أخرى.', 'rejected');
@@ -85,7 +87,7 @@ function authSafeEqual_(a, b) {
 /** ينشئ جلسة للمستخدم ويعيد {session, expiresAt, user}. */
 function authIssueSession_(user) {
   const iat = Math.floor(rq_().now.getTime() / 1000);
-  const exp = iat + cfgSessionDays_() * 86400;
+  const exp = iat + Math.floor(cfgSessionDays_() * 86400);
   const payload = { uid: user.id || '', email: user.email, uv: user.version || 0, iat: iat, exp: exp };
   const part = Utilities.base64EncodeWebSafe(JSON.stringify(payload));
   const token = part + '.' + authSignPart_(part);
@@ -139,9 +141,10 @@ function authNotAllowed_(email, reason) {
 /**
  * يتحقق من الجلسة مع كل إجراء محمي ويعيد المستخدم الحالي.
  * الفحوص: التوقيع، الانتهاء، وجود الصف، تطابق البريد، الحالة نشط (إلا المدير الأساسي)، والإصدار = uv.
+ * decoded: حمولة سبق فكّها بـ authDecodeSession_ (اختياري).
  */
-function authVerifySession_(token) {
-  const payload = authDecodeSession_(token);
+function authVerifySession_(token, decoded) {
+  const payload = decoded || authDecodeSession_(token);
   const email = payload.email.trim().toLowerCase();
   const isBootstrap = usersIsBootstrapEmail_(email);
   try {
@@ -155,12 +158,18 @@ function authVerifySession_(token) {
     }
     throw e;
   }
-  const rec = payload.uid ? stFindById_(stTable_('users'), payload.uid) : null;
+  let rec = payload.uid ? stFindById_(stTable_('users'), payload.uid) : null;
+  if (rec && usersEmailOf_(rec) !== email) rec = null;
   if (!rec) {
-    if (isBootstrap) throw authStale_(); // إعادة الدخول تُنشئ الصف من جديد
+    // الصف تغيّر (مثلًا بعد ربط ملف آخر): إن وُجد البريد في صف آخر يكفي تسجيل الدخول من جديد.
+    if (usersFindByEmail_(email)) throw authStale_();
+    if (isBootstrap) {
+      const u = usersSyntheticBootstrap_(email, '', '', payload.uv);
+      rq_().user = u;
+      return u;
+    }
     throw authNotAllowed_(email, 'not_listed');
   }
-  if (usersEmailOf_(rec) !== email) throw authStale_();
   const user = usersToApi_(rec);
   if (!isBootstrap && user.status !== 'active') throw authNotAllowed_(email, 'disabled');
   if (user.version !== payload.uv) throw authStale_();

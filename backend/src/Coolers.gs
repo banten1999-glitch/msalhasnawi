@@ -125,7 +125,7 @@ function coolersGetAction_(p) {
 
 /** coolers.create {name?, carNo?, driver?, notes?} — رقم البراد = الأكبر + 1، والحالة مفتوح. */
 function coolersCreateAction_(p) {
-  stRequire_(['coolers', 'audit']);
+  stRequire_(stDataKeys_().concat(['audit']));
   const t = stTable_('coolers');
   const name = inStr_(p.name, 'name', 'اسم البراد / الوصف', { max: 80 });
   const carNo = inStr_(p.carNo, 'carNo', 'رقم السيارة', { max: 30 });
@@ -149,7 +149,7 @@ function coolersCreateAction_(p) {
 
 /** coolers.close {id, expectedVersion, clientPendingCount} — يكتب لقطة «عند التقفيل». */
 function coolersCloseAction_(p) {
-  stRequire_(['coolers', 'farmers', 'purchases', 'payments', 'packaging', 'packaging_items', 'audit']);
+  stRequire_(stDataKeys_().concat(['audit']));
   const t = stTable_('coolers');
   const id = inId_(p.id, 'id', 'البراد');
   const pending = inInt_(p.clientPendingCount, 'clientPendingCount', 'عدد العمليات بانتظار المزامنة', { min: 0, max: 100000 }) || 0;
@@ -194,25 +194,20 @@ function coolersCloseAction_(p) {
 
 /** coolers.reopen {id, reason} — للمدير فقط؛ تبقى اللقطة. */
 function coolersReopenAction_(p) {
-  stRequire_(['coolers', 'audit']);
+  stRequire_(stDataKeys_().concat(['audit']));
   const t = stTable_('coolers');
   const id = inId_(p.id, 'id', 'البراد');
-  const reason = inReason_(p.reason, 'سبب إعادة الفتح');
+  const reason = inReason_(p.reason, 'لإعادة فتح البراد');
   const rec = coolersMustFind_(id, 'id');
   if (!coolerIsClosed_(rec)) {
     failValidation_('id', 'البراد رقم ' + cellInt_(rec['رقم البراد']) + ' مفتوح بالفعل. لا حاجة لإعادة فتحه.');
+  }
+  if (inPresent_(p.expectedVersion)) {
+    const expected = inExpectedVersion_(p.expectedVersion);
+    if (stVersion_(rec) !== expected) failConflict_('هذا البراد', stVersion_(rec), coolerSummary_(rec));
   }
   stUpdate_(t, rec, { 'الحالة': 'مفتوح' });
   auditAdd_('إعادة فتح', 'براد', id, 'إعادة فتح البراد رقم ' + cellInt_(rec['رقم البراد']),
     { status: 'closed' }, { status: 'open' }, reason);
   return { cooler: coolerSummary_(rec) };
-}
-
-/** يحذف الحقول المساعدة (التي تبدأ بـ _) قبل الإرسال. */
-function dmStripPrivate_(obj) {
-  const out = {};
-  Object.keys(obj).forEach(function (k) {
-    if (k.charAt(0) !== '_') out[k] = obj[k];
-  });
-  return out;
 }

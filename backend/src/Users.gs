@@ -30,10 +30,10 @@ const RMN_PERM_LABELS = Object.freeze({
   viewData: 'عرض البيانات',
 });
 
-// الصلاحيات الافتراضية لموظف إدخال جديد إن لم تُرسل.
+// الصلاحيات الافتراضية لموظف إدخال جديد إن لم تُرسل: لا شيء غير العرض (أقل صلاحية).
 const RMN_ENTRY_DEFAULT_PERMS = Object.freeze({
-  addFarmers: true, recordPurchases: true, editOthers: false,
-  recordPayments: true, packaging: true, closeCoolers: false,
+  addFarmers: false, recordPurchases: false, editOthers: false,
+  recordPayments: false, packaging: false, closeCoolers: false,
 });
 
 const RMN_ROLE_CHOICES = Object.freeze({ admin: 'مدير', entry: 'موظف إدخال', viewer: 'مشاهدة فقط' });
@@ -212,7 +212,7 @@ function usersAddAction_(p) {
     'أضافه': userLabel_(rq_().user),
   };
   Object.assign(row, usersPermColumns_(p.permissions, role, null));
-  const rec = stAppend_(t, [row], { track: false })[0];
+  const rec = stAppend_(t, [row])[0];
   const user = usersToApi_(rec);
   auditAdd_('إنشاء', 'مستخدم', user.id, 'إضافة المستخدم ' + email + ' بدور ' + RMN_ROLE_CHOICES[role], null, row, '');
   return { user: user };

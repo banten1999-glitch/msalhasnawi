@@ -579,9 +579,12 @@ function inId_(v, field, label) {
   return inStr_(v, field, label, { required: true, max: 64, hint: 'اختره من القائمة ثم أعد المحاولة.' });
 }
 
-/** سبب مطلوب للإلغاء أو إعادة الفتح. */
-function inReason_(v, label) {
-  return inStr_(v, 'reason', label || 'السبب', { required: true, max: 500, multiline: true, hint: 'اكتب سببًا واضحًا ثم أعد المحاولة.' });
+/** سبب مطلوب للإلغاء أو إعادة الفتح. purpose: مثل «لإلغاء الدفعة». */
+function inReason_(v, purpose) {
+  return inStr_(v, 'reason', 'السبب', {
+    required: true, max: 500, multiline: true,
+    hint: (purpose ? 'اكتب سببًا واضحًا ' + purpose : 'اكتب سببًا واضحًا') + ' ثم أعد المحاولة.',
+  });
 }
 
 // =====================================================================================

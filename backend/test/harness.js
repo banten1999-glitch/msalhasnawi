@@ -265,7 +265,7 @@ function installFakeAppsScript(world, host, setupFormatting) {
   }
   function logRead(sh, op, r, c, nr, nc) {
     world.log.reads.push({ seq: nextSeq(), phase: world.phase, op, sheet: sh.name, row: r, col: c,
-      numRows: nr, numCols: nc });
+      numRows: nr, numCols: nc, lockHeld: !!world.lock.held });
   }
   function lastRowOf(sh) {
     let last = 0;

@@ -80,10 +80,15 @@ function cfgAllowedClientIds_() {
   return list.length ? list : RMN_CFG.defaultClientIds.slice();
 }
 
-/** مدة الجلسة بالأيام (افتراضيًا 7، بين 1 و90). */
+/**
+ * مدة الجلسة بالأيام (افتراضيًا 7، حتى 90). القيمة 0 تعني أن الجلسة تنتهي فورًا (للطوارئ).
+ * الفارغ أو غير الصالح ⇒ 7.
+ */
 function cfgSessionDays_() {
-  const n = parseInt(cfgGet_(RMN_PROP.sessionDays), 10);
-  if (!isFinite(n) || n < 1) return RMN_CFG.defaultSessionDays;
+  const raw = cfgGet_(RMN_PROP.sessionDays).trim();
+  if (!raw) return RMN_CFG.defaultSessionDays;
+  const n = Number(raw);
+  if (!isFinite(n) || n < 0) return RMN_CFG.defaultSessionDays;
   return Math.min(n, RMN_CFG.maxSessionDays);
 }
 

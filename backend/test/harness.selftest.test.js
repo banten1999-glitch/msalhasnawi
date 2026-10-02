@@ -245,3 +245,121 @@ test('backend sources, when present, load without errors in the documented order
   assert.equal(env.evaluate('typeof doPost', { withBackend: true }), 'function', 'doPost is defined');
   assert.equal(env.evaluate('typeof doGet', { withBackend: true }), 'function', 'doGet is defined');
 });
+
+test('formatting calls found in setup.gs are chainable no-ops; data methods are never turned into no-ops', () => {
+  const { SETUP_FORMATTING } = require('./harness');
+  ['setFontFamily', 'setTabColor', 'setRightToLeft', 'setBorder', 'hideColumns', 'merge', 'breakApart',
+    'setConditionalFormatRules', 'setFrozenRows'].forEach((m) => assert.ok(SETUP_FORMATTING.includes(m), m));
+  ['setValue', 'setValues', 'setFormula', 'clearContent', 'clear', 'setNumberFormat', 'setDataValidation']
+    .forEach((m) => assert.equal(SETUP_FORMATTING.includes(m), false, `${m} is a data method`));
+  const env = createEnv(noBackend);
+  const r = env.evaluate(`(() => {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sh = ss.getSheetByName('البرادات');
+    const tryIt = (f) => { try { f(); return 'no error'; } catch (e) { return e.message; } };
+    return {
+      sheetChain: sh.setTabColor('#fff').setRightToLeft(true).getName(),
+      sheetSetValue: tryIt(() => sh.setValue('x')),
+      rangeDisplay: tryIt(() => sh.getRange(1, 1).getDisplayValue()),
+      dataRange: tryIt(() => sh.getDataRange()),
+      deleteRow: tryIt(() => sh.deleteRow(4)),
+      builder: typeof SpreadsheetApp.newDataValidation().requireValueInList(['a'], true).setAllowInvalid(false).build(),
+      border: SpreadsheetApp.BorderStyle.SOLID,
+    };
+  })()`);
+  assert.equal(r.sheetChain, 'البرادات');
+  assert.match(r.sheetSetValue, /not part of the Apps Script subset/);
+  assert.match(r.rangeDisplay, /not part of the Apps Script subset/);
+  assert.match(r.dataRange, /not part of the Apps Script subset/);
+  assert.match(r.deleteRow, /not part of the Apps Script subset/, 'rows can never be deleted through the fake');
+  assert.equal(r.builder, 'object');
+  assert.equal(r.border, 'SOLID');
+});
+
+test('the realm runs in the script time zone like Apps Script (local dates are Africa/Cairo)', () => {
+  const env = createEnv(noBackend);
+  assert.equal(env.evaluate('new Date(2026, 9, 2).toISOString()'), '2026-10-01T21:00:00.000Z');
+  assert.equal(env.evaluate('new Date(2026, 11, 2).toISOString()'), '2026-12-01T22:00:00.000Z');
+});
+
+test('fake lock can be busy for a number of attempts only', () => {
+  const env = createEnv(noBackend);
+  env.lock.setBusy(2);
+  const r = env.evaluate(`(() => {
+    const l = LockService.getScriptLock();
+    const out = [];
+    for (let i = 0; i < 3; i++) { try { l.waitLock(25000); out.push('ok'); l.releaseLock(); } catch (e) { out.push('busy'); } }
+    return out;
+  })()`);
+  assert.deepEqual(r, ['busy', 'busy', 'ok']);
+  assert.equal(env.lock.isBusy(), false);
+  assert.ok(env.lock.ops().some((o) => o.op === 'waitLock' && o.ms === 25000));
+});
+
+test('fake spreadsheet structure: insertSheet/getSheets/deleteSheet, getLastRow ignores blank rows, formulas count', () => {
+  const env = createEnv(noBackend);
+  const r = env.evaluate(`(() => {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const tryIt = (f) => { try { f(); return 'no error'; } catch (e) { return e.message; } };
+    const out = {};
+    out.dup = tryIt(() => ss.insertSheet('البرادات'));
+    const t = ss.insertSheet('مؤقت', 1);
+    out.position = ss.getSheets()[1].getName();
+    t.getRange(5, 2).setValue('x');
+    t.getRange(7, 1).setValue('');
+    out.lastRow = t.getLastRow();
+    out.lastCol = t.getLastColumn();
+    t.getRange(9, 3).setFormula('=1+1');
+    out.lastRowFormula = t.getLastRow();
+    t.getRange(5, 2).clearContent();
+    t.getRange(9, 3).clear();
+    out.cleared = t.getLastRow();
+    t.appendRow(['a', 'b']);
+    out.appended = t.getRange(1, 1, 1, 2).getValues()[0];
+    t.insertRowsAfter(t.getMaxRows(), 10);
+    out.maxRows = t.getMaxRows();
+    ss.deleteSheet(t);
+    out.gone = ss.getSheetByName('مؤقت') === null;
+    out.id = ss.getId() === ${JSON.stringify(env.spreadsheetId)};
+    out.url = ss.getUrl();
+    out.tz = ss.getSpreadsheetTimeZone();
+    return out;
+  })()`);
+  assert.match(r.dup, /already exists/);
+  assert.equal(r.position, 'مؤقت');
+  assert.equal(r.lastRow, 5);
+  assert.equal(r.lastCol, 2);
+  assert.equal(r.lastRowFormula, 9);
+  assert.equal(r.cleared, 0);
+  assert.deepEqual(r.appended, ['a', 'b']);
+  assert.equal(r.maxRows, 1010);
+  assert.equal(r.gone, true);
+  assert.equal(r.id, true);
+  assert.match(r.url, /^https:\/\/docs\.google\.com\/spreadsheets\/d\//);
+  assert.equal(r.tz, 'Africa/Cairo');
+});
+
+test('fake CacheService: string values only, TTL capped at 6 h, remove / removeAll', () => {
+  const env = createEnv(noBackend);
+  env.evaluate(`(() => { const c = CacheService.getScriptCache(); c.put('a', '1', 999999); c.put('b', '2'); c.put('c', '3', 5);
+    c.removeAll(['b']); c.remove('c'); })()`);
+  assert.equal(env.cache.entry('a').ttl, 21600);
+  assert.equal(env.cache.get('b'), null);
+  assert.equal(env.cache.get('c'), null);
+  env.clock.advance(21600 * 1000 + 1);
+  assert.equal(env.cache.get('a'), null);
+});
+
+test('createEnv exposes readSheet rows keyed by the row-3 headers, props, cache and lock controls', () => {
+  const env = createEnv({ bootstrapAdmin: 'boss@gmail.com', extraProps: { SESSION_DAYS: '2' } });
+  assert.equal(env.props.get('BOOTSTRAP_ADMIN_EMAIL'), 'boss@gmail.com');
+  assert.equal(env.props.get('SESSION_DAYS'), '2');
+  const rows = env.readSheet('item_types');
+  assert.equal(rows[0]._row, SCHEMA.firstDataRow);
+  assert.equal(rows[0]['الصنف'], 'الصناديق');
+  assert.deepEqual(env.readSheet('أصناف التعبئة'), rows, 'by key or by title');
+  assert.equal(typeof env.post, 'function');
+  assert.equal(typeof env.call, 'function');
+  assert.equal(typeof env.loginAs, 'function');
+  assert.equal(typeof env.registerGoogleUser('x@gmail.com', { aud: 'a', verified: false, exp: 1, name: 'س' }), 'string');
+});

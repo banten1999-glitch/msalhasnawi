@@ -6,6 +6,7 @@
  *   SCHEMA.headerRow — لا بمواقعها أبدًا.
  * - كل صفحة تُقرأ مرة واحدة لكل طلب (getValues واحدة) وتُحفظ في الذاكرة، والكتابة تحدّث النسخة
  *   المحفوظة أيضًا.
+ * - كل كتابة تُسجَّل في «دفتر الطلب» حتى يمكن التعويض عند فشل كتابة لاحقة (العقد §7).
  * - لا يُحذف أي صف.
  */
 
@@ -23,9 +24,11 @@ function rqBegin_() {
     index: null,
     user: null,
     wrote: false,
-    created: [],
+    journal: [],
     audit: [],
     lockHeld: false,
+    action: '',
+    requestId: '',
   };
   return RMN_REQ;
 }
@@ -39,7 +42,7 @@ function rqNow_() {
   return new Date(rq_().now.getTime());
 }
 
-/** يُسقط كل ما قُرئ من الصفحات لإعادة القراءة (بعد أخذ القفل أو بعد الإصلاح). */
+/** يُسقط كل ما قُرئ من الصفحات لإعادة القراءة (بعد الإصلاح أو بعد تبديل الملف). */
 function rqResetTables_() {
   const rq = rq_();
   rq.tables = {};
@@ -132,8 +135,9 @@ function stHeaderName_(v) {
 }
 
 /**
- * يقرأ الصفحة مرة واحدة لكل طلب. السجل كائن مفاتيحه أسماء الأعمدة، مع $row (رقم الصف) و$vals (القيم الخام).
- * سجل التعديلات يُقرأ «خفيفًا»: العناوين وعمود المعرّف فقط، لأنه يكبر ولا نحتاج إلا أكبر معرّف.
+ * يقرأ الصفحة مرة واحدة لكل طلب (getValues واحدة). السجل كائن مفاتيحه أسماء الأعمدة، مع $row
+ * (رقم الصف) و$vals (القيم الخام). سجل التعديلات يُحفظ «خفيفًا» (المعرّف فقط) لأنه يكبر ولا نحتاج
+ * منه إلا أكبر معرّف.
  */
 function stTable_(key) {
   const rq = rq_();
@@ -153,33 +157,23 @@ function stTable_(key) {
     const lastCol = sh.getLastColumn();
     t.lastRow = Math.max(lastRow, hr);
     if (lastCol > 0 && lastRow >= hr) {
-      let values;
-      if (t.light) {
-        values = [sh.getRange(hr, 1, 1, lastCol).getValues()[0]];
-      } else {
-        values = sh.getRange(hr, 1, lastRow - hr + 1, lastCol).getValues();
-      }
+      const values = sh.getRange(hr, 1, lastRow - hr + 1, lastCol).getValues();
       t.headers = values[0].map(stHeaderName_);
       t.headers.forEach(function (h, j) {
         if (h && t.col[h] === undefined) t.col[h] = j;
       });
       const keyIdx = t.col[keyName];
-      if (t.light) {
-        if (keyIdx !== undefined && lastRow > hr) {
-          const ids = sh.getRange(hr + 1, keyIdx + 1, lastRow - hr, 1).getValues();
-          ids.forEach(function (r, i) {
-            const id = cellStr_(r[0]);
-            if (!id) return;
-            const rec = { $row: hr + 1 + i, $vals: null };
-            rec[keyName] = id;
-            t.rows.push(rec);
-          });
-        }
-      } else if (keyIdx !== undefined) {
+      if (keyIdx !== undefined) {
         for (let i = 1; i < values.length; i++) {
           const vals = values[i];
           if (cellStr_(vals[keyIdx]) === '') continue;
-          t.rows.push(stMakeRec_(t, hr + i, vals));
+          if (t.light) {
+            const rec = { $row: hr + i, $vals: null };
+            rec[keyName] = cellStr_(vals[keyIdx]);
+            t.rows.push(rec);
+          } else {
+            t.rows.push(stMakeRec_(t, hr + i, vals));
+          }
         }
       }
     }
@@ -210,14 +204,19 @@ function stRequire_(keys) {
   });
   if (missing.length) {
     const parts = missing.map(function (m) {
-      const t = SCHEMA.sheets.filter(function (d) { return d.title === m.sheet; })[0];
-      const whole = t && m.columns.length === t.columns.length;
+      const def = SCHEMA.sheets.filter(function (d) { return d.title === m.sheet; })[0];
+      const whole = def && m.columns.length === def.columns.length;
       return whole ? 'صفحة «' + m.sheet + '»' : 'أعمدة في صفحة «' + m.sheet + '»: ' + m.columns.join('، ');
     });
     throw apiError_('SHEET_SCHEMA',
       'ملف Google Sheets ينقصه: ' + parts.join('؛ ') + '. افتح «إعدادات الملف» واضغط «إصلاح الملف»، أو اطلب ذلك من المدير.',
       null, { missing: missing });
   }
+}
+
+/** كل صفحات البيانات التي تحتاجها العمليات المالية. */
+function stDataKeys_() {
+  return ['coolers', 'farmers', 'purchases', 'payments', 'packaging', 'packaging_items'];
 }
 
 function stKeyName_(t) {
@@ -287,6 +286,10 @@ function stMarkWrite_() {
   rq.index = null;
 }
 
+function stCellValue_(v) {
+  return v === null || v === undefined ? '' : v;
+}
+
 /**
  * يضيف صفوفًا في نهاية الصفحة (setValues واحدة). objs: [{اسم العمود: قيمة}].
  * يضبط الإصدار 1 وختم التعديل. opts: {track (افتراضيًا true للتعويض عند الفشل), stamp}.
@@ -304,7 +307,7 @@ function stAppend_(t, objs, opts) {
     for (let j = 0; j < width; j++) vals.push('');
     Object.keys(c).forEach(function (h) {
       const j = t.col[h];
-      if (j !== undefined) vals[j] = c[h] === null || c[h] === undefined ? '' : c[h];
+      if (j !== undefined) vals[j] = stCellValue_(c[h]);
     });
     return stMakeRec_(t, start + k, vals);
   });
@@ -315,43 +318,57 @@ function stAppend_(t, objs, opts) {
     return r.$vals.map(cellOut_);
   }));
   t.lastRow = last;
-  recs.forEach(function (r) { t.rows.push(r); });
+  recs.forEach(function (r) {
+    if (t.light) {
+      const keyName = stKeyName_(t);
+      const lightRec = { $row: r.$row, $vals: null };
+      lightRec[keyName] = cellStr_(r[keyName]);
+      t.rows.push(lightRec);
+    } else {
+      t.rows.push(r);
+    }
+  });
   if (opts.track !== false) {
-    recs.forEach(function (r) { rq_().created.push({ t: t, rec: r }); });
+    recs.forEach(function (r) { rq_().journal.push({ op: 'append', t: t, rec: r }); });
   }
   stMarkWrite_();
   return recs;
 }
 
 /**
- * يحدّث خلايا صف في مكانه. يزيد الإصدار (إلا إن bump=false) ويضع ختم التعديل.
- * يكتب نطاقًا متصلًا واحدًا من أول عمود متغير إلى آخره.
+ * يحدّث خلايا صف في مكانه. يزيد الإصدار (إلا إن bump=false) ويضع ختم التعديل (إلا إن stamp=false).
+ * يكتب الأعمدة المتغيرة فقط، كل مجموعة أعمدة متجاورة بـ setValues واحدة، فلا يمس الخلايا الأخرى.
+ * opts.track=false: لا يُسجَّل في دفتر التعويض.
  */
 function stUpdate_(t, rec, changes, opts) {
   opts = opts || {};
   const c = Object.assign({}, changes);
-  if (opts.bump !== false && t.col['الإصدار'] !== undefined) {
-    c['الإصدار'] = (cellInt_(rec['الإصدار']) || 1) + 1;
+  if (opts.bump !== false && t.col['الإصدار'] !== undefined && !Object.prototype.hasOwnProperty.call(c, 'الإصدار')) {
+    c['الإصدار'] = stVersion_(rec) + 1;
   }
   if (opts.stamp !== false) stStamp_(t, c);
   const names = Object.keys(c).filter(function (n) { return t.col[n] !== undefined; });
   if (!names.length) return rec;
-  const idx = names.map(function (n) { return t.col[n]; });
-  const lo = Math.min.apply(null, idx);
-  const hi = Math.max.apply(null, idx);
-  const slice = [];
-  for (let j = lo; j <= hi; j++) {
-    const h = t.headers[j];
-    let v = rec.$vals && j < rec.$vals.length ? rec.$vals[j] : '';
-    if (h && t.col[h] === j && Object.prototype.hasOwnProperty.call(c, h)) {
-      v = c[h] === null || c[h] === undefined ? '' : c[h];
-    }
-    slice.push(v);
+  const prev = {};
+  names.forEach(function (n) { prev[n] = stCellValue_(rec[n]); });
+  const idx = names.map(function (n) { return t.col[n]; }).sort(function (a, b) { return a - b; });
+  const byIdx = {};
+  names.forEach(function (n) { byIdx[t.col[n]] = stCellValue_(c[n]); });
+  let i = 0;
+  while (i < idx.length) {
+    let j = i;
+    while (j + 1 < idx.length && idx[j + 1] === idx[j] + 1) j++;
+    const run = [];
+    for (let k = i; k <= j; k++) run.push(cellOut_(byIdx[idx[k]]));
+    t.sheet.getRange(rec.$row, idx[i] + 1, 1, j - i + 1).setValues([run]);
+    i = j + 1;
   }
-  t.sheet.getRange(rec.$row, lo + 1, 1, hi - lo + 1).setValues([slice.map(cellOut_)]);
   if (!rec.$vals) rec.$vals = [];
-  slice.forEach(function (v, k) { rec.$vals[lo + k] = v; });
-  names.forEach(function (n) { rec[n] = c[n] === null || c[n] === undefined ? '' : c[n]; });
+  names.forEach(function (n) {
+    rec.$vals[t.col[n]] = stCellValue_(c[n]);
+    rec[n] = stCellValue_(c[n]);
+  });
+  if (opts.track !== false) rq_().journal.push({ op: 'update', t: t, rec: rec, prev: prev });
   stMarkWrite_();
   return rec;
 }
@@ -414,7 +431,7 @@ function auditJson_(v) {
   return s;
 }
 
-/** يكتب أسطر السجل المعلقة في صفحة سجل التعديلات. */
+/** يكتب أسطر السجل المعلقة في صفحة سجل التعديلات (setValues واحدة). */
 function auditFlush_() {
   const rq = rq_();
   if (!rq.audit.length) return;
@@ -440,16 +457,14 @@ function auditFlush_() {
   stAppend_(t, rows, { track: false, stamp: false });
 }
 
-/** يقارن قيم أعمدة قبل/بعد ويعيد ما تغيّر فقط {prev, next}. */
+/** يقارن قيم أعمدة قبل/بعد ويعيد ما تغيّر فقط {prev, next, changed}. */
 function auditDiff_(before, after) {
   const prev = {};
   const next = {};
   Object.keys(after).forEach(function (k) {
     const a = before[k];
     const b = after[k];
-    const sa = isDate_(a) ? a.getTime() : a;
-    const sb = isDate_(b) ? b.getTime() : b;
-    if (String(sa === null || sa === undefined ? '' : sa) !== String(sb === null || sb === undefined ? '' : sb)) {
+    if (!stSameCell_(a, b)) {
       prev[k] = a === undefined ? '' : a;
       next[k] = b;
     }
@@ -457,57 +472,90 @@ function auditDiff_(before, after) {
   return { prev: prev, next: next, changed: Object.keys(next).length > 0 };
 }
 
+/** هل قيمتا الخلية متساويتان (تواريخ بالمللي ثانية، والأرقام كنص)؟ */
+function stSameCell_(a, b) {
+  const sa = isDate_(a) ? a.getTime() : a;
+  const sb = isDate_(b) ? b.getTime() : b;
+  return String(sa === null || sa === undefined ? '' : sa) === String(sb === null || sb === undefined ? '' : sb);
+}
+
 // =====================================================================================
-// التعويض عند الفشل الجزئي
+// التعويض عند الفشل الجزئي (العقد §7)
 // =====================================================================================
 
+/** التغييرات التي «تُلغي» صفًا أُضيف في طلب فشل لاحقًا (لا حذف). null = لا شيء. */
+function stCompensationChanges_(t, rec) {
+  const reason = RMN_CFG.compensationReason;
+  switch (t.key) {
+    case 'purchases':
+    case 'payments':
+      return { 'الحالة': 'ملغاة', 'سبب الإلغاء': reason };
+    case 'packaging':
+      return { 'الحالة': 'ملغى', 'ملاحظات': appendNote_(rec['ملاحظات'], reason) };
+    case 'packaging_items':
+      return { 'الحالة': 'محذوف', 'ملاحظات': appendNote_(rec['ملاحظات'], reason) };
+    case 'farmers':
+      return { 'الحالة': 'موقوف', 'ملاحظات': appendNote_(rec['ملاحظات'], reason) };
+    case 'coolers':
+      return { 'ملاحظات': appendNote_(rec['ملاحظات'], reason) };
+    case 'users':
+      // البريد يُفرَّغ حتى تنجح إعادة المحاولة دون «بريد مكرر»، والصف يبقى معطّلًا للأثر.
+      return {
+        'الحالة': 'معطّل',
+        'البريد (Gmail)': '',
+        'الاسم': cellStr_(rec['الاسم']) + ' — ' + reason + ' (' + cellStr_(rec['البريد (Gmail)']) + ')',
+      };
+    case 'item_types':
+      return { 'نشط': 'لا', 'الصنف': cellStr_(rec['الصنف']) + ' — ' + reason };
+    default:
+      return null;
+  }
+}
+
 /**
- * عند فشل كتابة لاحقة: الصفوف التي أُنشئت في هذا الطلب تُلغى (لا تُحذف)، ويُغيَّر مفتاح عدم التكرار
- * حتى تنجح إعادة المحاولة بنفس requestId. لا يرمي أبدًا.
+ * عند فشل كتابة لاحقة: يُرجع الصفوف المعدَّلة في هذا الطلب إلى قيمها السابقة، ويُلغي الصفوف المضافة
+ * (لا يحذفها)، ويغيّر مفتاح عدم التكرار حتى تنجح إعادة المحاولة بنفس requestId، ثم يعيد حساب
+ * المدفوع/المتبقي المخزن. لا يرمي أبدًا.
  */
 function stCompensate_() {
   const rq = rq_();
-  const list = rq.created.splice(0, rq.created.length).reverse();
+  const list = rq.journal.splice(0, rq.journal.length).reverse();
   rq.audit = [];
-  const reason = RMN_CFG.compensationReason;
-  const targets = [];
+  const appended = [];
+  list.forEach(function (e) { if (e.op === 'append') appended.push(e.rec); });
+  const refresh = { purchase: {}, packaging: {} };
+  const noteTarget = function (t, rec) {
+    if (t.key === 'purchases') refresh.purchase[cellStr_(rec['المعرّف'])] = true;
+    if (t.key === 'packaging') refresh.packaging[cellStr_(rec['المعرّف'])] = true;
+    if (t.key === 'packaging_items') refresh.packaging[cellStr_(rec['معرّف الشراء'])] = true;
+    if (t.key === 'payments') {
+      const type = enumToApi_('payTarget', rec['نوع العملية'], 'purchase');
+      refresh[type === 'packaging' ? 'packaging' : 'purchase'][cellStr_(rec['معرّف العملية'])] = true;
+    }
+  };
   list.forEach(function (entry) {
     const t = entry.t;
     const rec = entry.rec;
     try {
-      const c = {};
-      if (t.key === 'purchases' || t.key === 'payments') {
-        c['الحالة'] = 'ملغاة';
-        c['سبب الإلغاء'] = reason;
-      } else if (t.key === 'packaging') {
-        c['الحالة'] = 'ملغى';
-        c['ملاحظات'] = appendNote_(rec['ملاحظات'], reason);
-      } else if (t.key === 'packaging_items') {
-        c['الحالة'] = 'محذوف';
-      } else if (t.key === 'farmers') {
-        c['الحالة'] = 'موقوف';
-        c['ملاحظات'] = appendNote_(rec['ملاحظات'], reason);
-      } else {
+      noteTarget(t, rec);
+      if (entry.op === 'update') {
+        if (appended.indexOf(rec) >= 0) return; // سيُلغى كاملًا
+        stUpdate_(t, rec, entry.prev, { bump: false, stamp: false, track: false });
         return;
       }
+      const c = stCompensationChanges_(t, rec);
+      if (!c) return;
       const key = cellStr_(rec['مفتاح عدم التكرار']);
       if (t.col['مفتاح عدم التكرار'] !== undefined && key) c['مفتاح عدم التكرار'] = key + RMN_CFG.failedKeySuffix;
-      stUpdate_(t, rec, c);
-      if (t.key === 'payments') {
-        targets.push({
-          type: enumToApi_('payTarget', rec['نوع العملية'], 'purchase'),
-          id: cellStr_(rec['معرّف العملية']),
-        });
-      }
-    } catch (e) {
+      stUpdate_(t, rec, c, { track: false });
+    } catch (err) {
       // نكمل بقية التعويض.
     }
   });
-  targets.forEach(function (x) {
-    try {
-      paymentsRefreshTarget_(x.type, x.id);
-    } catch (e) {
-      // نتجاهل.
-    }
+  Object.keys(refresh.purchase).forEach(function (id) {
+    try { paymentsRefreshTarget_('purchase', id, { track: false }); } catch (err) { /* نتجاهل */ }
+  });
+  Object.keys(refresh.packaging).forEach(function (id) {
+    try { paymentsRefreshTarget_('packaging', id, { track: false }); } catch (err) { /* نتجاهل */ }
   });
 }

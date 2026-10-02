@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>حاسبة الرمان — معاينة شاشة البداية</title>
+<style>
+@font-face{font-family:"Readex Pro";src:url("../app/assets/fonts/ReadexPro-Bold.ttf") format("truetype");font-weight:700}
+html,body{margin:0;height:100%;background:#fff}
+body{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;font-family:"Readex Pro",system-ui,sans-serif}
+.title{font-size:32px;font-weight:700;color:#1C1714;animation:title .5s .9s ease-out both}
+@keyframes title{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.title{animation:none}}
+button{position:fixed;bottom:24px;font:inherit;font-size:15px;padding:10px 18px;border-radius:12px;border:1.5px solid #D9CFC1;background:#fff;cursor:pointer}
+</style>
+</head>
+<body>
+<main id="stage" style="display:flex;flex-direction:column;align-items:center;gap:16px">
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="155 124 960 960" role="img" aria-label="شعار حاسبة الرمان"><style>
+.pom{transform-origin:515px 690px;animation:pom .6s cubic-bezier(.2,.8,.2,1) both}
+.leaf{transform-origin:676px 384px;animation:leaf .6s .35s cubic-bezier(.2,.8,.2,1) both}
+.truck{animation:truck .8s .45s cubic-bezier(.2,1.25,.4,1) both}
+.snow{transform-origin:688px 758px;animation:snow .6s 1s cubic-bezier(.2,.8,.2,1) both}
+@keyframes pom{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:none}}
+@keyframes leaf{from{opacity:0;transform:rotate(-28deg) scale(.6)}to{opacity:1;transform:none}}
+@keyframes truck{0%{opacity:0;transform:translateX(-140px)}25%{opacity:1}100%{opacity:1;transform:none}}
+@keyframes snow{from{opacity:0;transform:rotate(-90deg) scale(.4)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.pom,.leaf,.truck,.snow{animation:fade .2s both}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+</style><title>شعار حاسبة الرمان</title><g class="pom"><circle cx="515" cy="690" r="345" fill="#A00B1E"/><path d="M470 412C340 420 228 548 232 750C252 610 320 474 470 412Z" fill="#FFFFFF"/><path d="M435 400L440 352C442 305 425 262 385 232C430 226 470 232 497 250C503 222 518 198 537 180C556 198 571 222 577 250C604 232 644 226 690 232C650 262 633 305 637 360L642 400Z" fill="#A00B1E"/><path d="M497 250C506 280 514 305 521 332M577 250C568 280 560 305 553 332" fill="none" stroke="#FFFFFF" stroke-width="11" stroke-linecap="round"/></g><g class="leaf"><path d="M676 384C690 322 780 262 956 247C936 322 880 392 772 399C736 401 700 396 676 384Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="18" stroke-linejoin="round"/><path d="M676 384C690 322 780 262 956 247C936 322 880 392 772 399C736 401 700 396 676 384Z" fill="#1F6B2C"/><path d="M712 388C760 346 806 318 853 302" fill="none" stroke="#FFFFFF" stroke-width="10" stroke-linecap="round"/></g><g class="truck"><path d="M615 566H852V962H470C425 930 410 880 418 830C440 700 520 590 615 566Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="26" stroke-linejoin="round"/><path d="M893 625H952Q970 625 981 640L1077 772Q1090 790 1090 812V925Q1090 962 1053 962H868V650Q868 625 893 625Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="26" stroke-linejoin="round"/><path d="M615 566H852V962H470C425 930 410 880 418 830C440 700 520 590 615 566Z" fill="#A00B1E"/><path d="M893 625H952Q970 625 981 640L1077 772Q1090 790 1090 812V925Q1090 962 1053 962H868V650Q868 625 893 625Z" fill="#A00B1E"/><path d="M600 622H806Q830 622 830 646V869Q830 893 806 893H628C612 866 588 853 556 853C536 853 516 857 500 862C503 770 525 690 568 637Q580 622 600 622Z" fill="#FFFFFF"/><path d="M916 662H958Q968 662 975 671L1035 751Q1045 765 1028 765H916Q903 765 903 752V675Q903 662 916 662Z" fill="#FFFFFF"/><path d="M1100 815H1052Q1037 815 1037 831Q1037 847 1052 847H1100Z" fill="#FFFFFF"/><circle cx="535" cy="957" r="84" fill="#FFFFFF"/><circle cx="535" cy="957" r="68" fill="#A00B1E"/><circle cx="535" cy="957" r="33" fill="#FFFFFF"/><circle cx="928" cy="952" r="84" fill="#FFFFFF"/><circle cx="928" cy="952" r="68" fill="#A00B1E"/><circle cx="928" cy="952" r="33" fill="#FFFFFF"/></g><g class="snow"><path d="M688.0 758.0L688.0 660.0M688.0 701.2L664.4 677.6M688.0 701.2L711.6 677.6M688.0 758.0L603.1 709.0M638.8 729.6L606.6 738.2M638.8 729.6L630.2 697.4M688.0 758.0L603.1 807.0M638.8 786.4L630.2 818.6M638.8 786.4L606.6 777.8M688.0 758.0L688.0 856.0M688.0 814.8L711.6 838.4M688.0 814.8L664.4 838.4M688.0 758.0L772.9 807.0M737.2 786.4L769.4 777.8M737.2 786.4L745.8 818.6M688.0 758.0L772.9 709.0M737.2 729.6L745.8 697.4M737.2 729.6L769.4 738.2" fill="none" stroke="#1F6B2C" stroke-width="15" stroke-linecap="round"/></g></svg>
+
+<div class="title">حاسبة الحسناوي</div>
+</main>
+<button type="button" onclick="replay()">إعادة التشغيل</button>
+<script>
+function replay(){const s=document.getElementById('stage');const c=s.cloneNode(true);s.replaceWith(c);}
+</script>
+</body>
+</html>

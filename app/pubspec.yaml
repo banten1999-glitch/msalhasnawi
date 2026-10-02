@@ -1,0 +1,66 @@
+name: rumman_calculator
+description: "حاسبة الرمان — إدارة شراء الرمان وتحميل البرادات ومشتريات التعبئة."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.13.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  flutter_svg: ^2.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.8
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/brand/
+  fonts:
+    - family: IBMPlexSansArabic
+      fonts:
+        - asset: assets/fonts/IBMPlexSansArabic-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/IBMPlexSansArabic-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/IBMPlexSansArabic-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/IBMPlexSansArabic-Bold.ttf
+          weight: 700
+    - family: ReadexPro
+      fonts:
+        - asset: assets/fonts/ReadexPro-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/ReadexPro-Bold.ttf
+          weight: 700
+
+# أيقونة التطبيق: dart run flutter_launcher_icons
+flutter_launcher_icons:
+  image_path: "assets/brand/png/app_icon.png"
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/brand/png/app_icon_foreground.png"
+  web:
+    generate: true
+    image_path: "assets/brand/png/app_icon.png"
+    background_color: "#FFFFFF"
+    theme_color: "#A00B1E"
+
+# شاشة النظام قبل تحميل Flutter: dart run flutter_native_splash:create
+flutter_native_splash:
+  color: "#FFFFFF"
+  image: assets/brand/png/splash_logo.png
+  android_12:
+    color: "#FFFFFF"
+    image: assets/brand/png/splash_logo.png
+  web: true

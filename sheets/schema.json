@@ -1,0 +1,1615 @@
+{
+  "version": 1,
+  "headerRow": 3,
+  "firstDataRow": 4,
+  "sheets": [
+    {
+      "key": "coolers",
+      "title": "البرادات",
+      "description": "بيانات كل براد وحالته. أعمدة «عند التقفيل» تُحفظ مرة واحدة لحظة التقفيل ولا تتغير بعدها.",
+      "tabColor": "#A00B1E",
+      "freezeColumns": 2,
+      "columns": [
+        {
+          "name": "المعرّف",
+          "kind": "id",
+          "width": 15,
+          "numberFormat": "@",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "رقم البراد",
+          "kind": "int",
+          "width": 12,
+          "numberFormat": "#,##0",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "الاسم / الوصف",
+          "kind": "text",
+          "width": 20,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "رقم السيارة",
+          "kind": "text",
+          "width": 15,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "السائق",
+          "kind": "text",
+          "width": 16,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "تاريخ ووقت الفتح",
+          "kind": "dt",
+          "width": 20,
+          "numberFormat": "yyyy-mm-dd  hh:mm",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "الحالة",
+          "kind": "enum",
+          "width": 16,
+          "numberFormat": "@",
+          "align": "center",
+          "options": [
+            "مفتوح",
+            "مقفّل"
+          ],
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "فتحه",
+          "kind": "text",
+          "width": 20,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "تاريخ ووقت التقفيل",
+          "kind": "dt",
+          "width": 20,
+          "numberFormat": "yyyy-mm-dd  hh:mm",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "قفّله",
+          "kind": "text",
+          "width": 20,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "عدد المزارعين عند التقفيل",
+          "kind": "int",
+          "width": 15,
+          "numberFormat": "#,##0",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "عدد العمليات عند التقفيل",
+          "kind": "int",
+          "width": 15,
+          "numberFormat": "#,##0",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "الصناديق عند التقفيل",
+          "kind": "int",
+          "width": 14,
+          "numberFormat": "#,##0",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "الوزن عند التقفيل (كغ)",
+          "kind": "kg",
+          "width": 15,
+          "numberFormat": "#,##0.0",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "قيمة الرمان عند التقفيل (ج.م)",
+          "kind": "money",
+          "width": 17,
+          "numberFormat": "#,##0.00",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": "bold"
+        },
+        {
+          "name": "المدفوع عند التقفيل (ج.م)",
+          "kind": "money",
+          "width": 17,
+          "numberFormat": "#,##0.00",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": "paid"
+        },
+        {
+          "name": "المتبقي عند التقفيل (ج.م)",
+          "kind": "money",
+          "width": 17,
+          "numberFormat": "#,##0.00",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": "due"
+        },
+        {
+          "name": "التعبئة عند التقفيل (ج.م)",
+          "kind": "money",
+          "width": 17,
+          "numberFormat": "#,##0.00",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "إجمالي التكلفة عند التقفيل (ج.م)",
+          "kind": "money",
+          "width": 17,
+          "numberFormat": "#,##0.00",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": "bold"
+        },
+        {
+          "name": "ملاحظات",
+          "kind": "long",
+          "width": 34,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "آخر تعديل",
+          "kind": "dt",
+          "width": 20,
+          "numberFormat": "yyyy-mm-dd  hh:mm",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "عدّله",
+          "kind": "text",
+          "width": 20,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "الإصدار",
+          "kind": "int",
+          "width": 12,
+          "numberFormat": "#,##0",
+          "align": "center",
+          "options": null,
+          "hidden": true,
+          "emphasis": null
+        }
+      ]
+    },
+    {
+      "key": "farmers",
+      "title": "المزارعون",
+      "description": "قائمة المزارعين. يُربط كل شراء بالمعرّف وليس بالاسم، فتغيير الاسم لا يفصل العمليات السابقة.",
+      "tabColor": "#1F6B2C",
+      "freezeColumns": 3,
+      "columns": [
+        {
+          "name": "المعرّف",
+          "kind": "id",
+          "width": 15,
+          "numberFormat": "@",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "رقم المزارع",
+          "kind": "int",
+          "width": 12,
+          "numberFormat": "#,##0",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "الاسم",
+          "kind": "text",
+          "width": 24,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "الهاتف",
+          "kind": "text",
+          "width": 16,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "القرية / المنطقة",
+          "kind": "text",
+          "width": 18,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "ملاحظات",
+          "kind": "long",
+          "width": 34,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "الحالة",
+          "kind": "enum",
+          "width": 16,
+          "numberFormat": "@",
+          "align": "center",
+          "options": [
+            "نشط",
+            "موقوف"
+          ],
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "تاريخ الإضافة",
+          "kind": "dt",
+          "width": 20,
+          "numberFormat": "yyyy-mm-dd  hh:mm",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "أضافه",
+          "kind": "text",
+          "width": 20,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "الإصدار",
+          "kind": "int",
+          "width": 12,
+          "numberFormat": "#,##0",
+          "align": "center",
+          "options": null,
+          "hidden": true,
+          "emphasis": null
+        }
+      ]
+    },
+    {
+      "key": "purchases",
+      "title": "مشتريات الرمان",
+      "description": "كل عملية شراء من مزارع. الوزن = الصناديق × متوسط الوزن الصافي، والقيمة = الوزن × سعر الكيلو. المدفوع والمتبقي يحسبهما التطبيق من صفحة المدفوعات.",
+      "tabColor": "#A00B1E",
+      "freezeColumns": 5,
+      "columns": [
+        {
+          "name": "المعرّف",
+          "kind": "id",
+          "width": 15,
+          "numberFormat": "@",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "معرّف البراد",
+          "kind": "id",
+          "width": 15,
+          "numberFormat": "@",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "رقم البراد",
+          "kind": "int",
+          "width": 11,
+          "numberFormat": "#,##0",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "معرّف المزارع",
+          "kind": "id",
+          "width": 15,
+          "numberFormat": "@",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "اسم المزارع",
+          "kind": "text",
+          "width": 24,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "تاريخ ووقت العملية",
+          "kind": "dt",
+          "width": 20,
+          "numberFormat": "yyyy-mm-dd  hh:mm",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "عدد الصناديق",
+          "kind": "int",
+          "width": 12,
+          "numberFormat": "#,##0",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "متوسط وزن الصندوق (كغ)",
+          "kind": "kg3",
+          "width": 15,
+          "numberFormat": "0.0##",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "طريقة حساب الوزن",
+          "kind": "enum",
+          "width": 16,
+          "numberFormat": "@",
+          "align": "center",
+          "options": [
+            "مباشر",
+            "عينة"
+          ],
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "أوزان العينة (كغ)",
+          "kind": "text",
+          "width": 22,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "وزن الصندوق الفارغ (كغ)",
+          "kind": "kg3",
+          "width": 15,
+          "numberFormat": "0.0##",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "إجمالي الوزن (كغ)",
+          "kind": "kg",
+          "width": 15,
+          "numberFormat": "#,##0.0",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": "bold"
+        },
+        {
+          "name": "سعر الكيلو (ج.م)",
+          "kind": "money",
+          "width": 14,
+          "numberFormat": "#,##0.00",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "إجمالي السعر (ج.م)",
+          "kind": "money",
+          "width": 17,
+          "numberFormat": "#,##0.00",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": "bold"
+        },
+        {
+          "name": "المدفوع (ج.م)",
+          "kind": "money",
+          "width": 17,
+          "numberFormat": "#,##0.00",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": "paid"
+        },
+        {
+          "name": "المتبقي (ج.م)",
+          "kind": "money",
+          "width": 17,
+          "numberFormat": "#,##0.00",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": "due"
+        },
+        {
+          "name": "حالة الدفع",
+          "kind": "enum",
+          "width": 16,
+          "numberFormat": "@",
+          "align": "center",
+          "options": [
+            "مدفوع",
+            "جزئي",
+            "غير مدفوع"
+          ],
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "الحالة",
+          "kind": "enum",
+          "width": 16,
+          "numberFormat": "@",
+          "align": "center",
+          "options": [
+            "فعّالة",
+            "ملغاة"
+          ],
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "سبب الإلغاء",
+          "kind": "long",
+          "width": 34,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "ملاحظات",
+          "kind": "long",
+          "width": 34,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "تاريخ الإنشاء الفعلي",
+          "kind": "dt",
+          "width": 20,
+          "numberFormat": "yyyy-mm-dd  hh:mm",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "أنشأها",
+          "kind": "text",
+          "width": 20,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "آخر تعديل",
+          "kind": "dt",
+          "width": 20,
+          "numberFormat": "yyyy-mm-dd  hh:mm",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "عدّلها",
+          "kind": "text",
+          "width": 20,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "الإصدار",
+          "kind": "int",
+          "width": 12,
+          "numberFormat": "#,##0",
+          "align": "center",
+          "options": null,
+          "hidden": true,
+          "emphasis": null
+        },
+        {
+          "name": "مفتاح عدم التكرار",
+          "kind": "id",
+          "width": 15,
+          "numberFormat": "@",
+          "align": "center",
+          "options": null,
+          "hidden": true,
+          "emphasis": null
+        }
+      ]
+    },
+    {
+      "key": "packaging",
+      "title": "مشتريات التعبئة",
+      "description": "عمليات شراء مواد التعبئة. المسودة لا تدخل الإجماليات المعتمدة. «تكلفة متأخرة» تعني أنها أُضيفت بعد تقفيل البراد.",
+      "tabColor": "#1F6B2C",
+      "freezeColumns": 3,
+      "columns": [
+        {
+          "name": "المعرّف",
+          "kind": "id",
+          "width": 15,
+          "numberFormat": "@",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "رقم الشراء",
+          "kind": "text",
+          "width": 13,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "المورد",
+          "kind": "text",
+          "width": 22,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "رقم الفاتورة",
+          "kind": "text",
+          "width": 14,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "تاريخ ووقت الشراء",
+          "kind": "dt",
+          "width": 20,
+          "numberFormat": "yyyy-mm-dd  hh:mm",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "معرّف البراد",
+          "kind": "id",
+          "width": 15,
+          "numberFormat": "@",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "رقم البراد",
+          "kind": "int",
+          "width": 11,
+          "numberFormat": "#,##0",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "الحالة",
+          "kind": "enum",
+          "width": 16,
+          "numberFormat": "@",
+          "align": "center",
+          "options": [
+            "مسودة",
+            "معتمد",
+            "ملغى"
+          ],
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "عدد العناصر",
+          "kind": "int",
+          "width": 12,
+          "numberFormat": "#,##0",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "عناصر غير مكتملة",
+          "kind": "int",
+          "width": 14,
+          "numberFormat": "#,##0",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "إجمالي العناصر المكتملة (ج.م)",
+          "kind": "money",
+          "width": 17,
+          "numberFormat": "#,##0.00",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": "bold"
+        },
+        {
+          "name": "المدفوع (ج.م)",
+          "kind": "money",
+          "width": 17,
+          "numberFormat": "#,##0.00",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": "paid"
+        },
+        {
+          "name": "المتبقي (ج.م)",
+          "kind": "money",
+          "width": 17,
+          "numberFormat": "#,##0.00",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": "due"
+        },
+        {
+          "name": "تكلفة متأخرة",
+          "kind": "bool",
+          "width": 13,
+          "numberFormat": "@",
+          "align": "center",
+          "options": [
+            "نعم",
+            "لا"
+          ],
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "ملاحظات",
+          "kind": "long",
+          "width": 34,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "تاريخ الإنشاء",
+          "kind": "dt",
+          "width": 20,
+          "numberFormat": "yyyy-mm-dd  hh:mm",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "أنشأه",
+          "kind": "text",
+          "width": 20,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "آخر تعديل",
+          "kind": "dt",
+          "width": 20,
+          "numberFormat": "yyyy-mm-dd  hh:mm",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "الإصدار",
+          "kind": "int",
+          "width": 12,
+          "numberFormat": "#,##0",
+          "align": "center",
+          "options": null,
+          "hidden": true,
+          "emphasis": null
+        },
+        {
+          "name": "مفتاح عدم التكرار",
+          "kind": "id",
+          "width": 15,
+          "numberFormat": "@",
+          "align": "center",
+          "options": null,
+          "hidden": true,
+          "emphasis": null
+        }
+      ]
+    },
+    {
+      "key": "packaging_items",
+      "title": "تفاصيل التعبئة",
+      "description": "العناصر داخل كل شراء تعبئة. الإجمالي = الكمية × السعر المفرد. الخانة الفارغة تعني «غير مكتمل» وليست صفرًا.",
+      "tabColor": "#1F6B2C",
+      "freezeColumns": 4,
+      "columns": [
+        {
+          "name": "المعرّف",
+          "kind": "id",
+          "width": 15,
+          "numberFormat": "@",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "معرّف الشراء",
+          "kind": "id",
+          "width": 15,
+          "numberFormat": "@",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "رقم الشراء",
+          "kind": "text",
+          "width": 13,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "الصنف",
+          "kind": "text",
+          "width": 22,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "الكمية",
+          "kind": "int",
+          "width": 12,
+          "numberFormat": "#,##0",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "الوحدة",
+          "kind": "enum",
+          "width": 16,
+          "numberFormat": "@",
+          "align": "center",
+          "options": [
+            "قطعة",
+            "رزمة",
+            "لفة",
+            "رول",
+            "كرتونة",
+            "كغ"
+          ],
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "السعر المفرد (ج.م)",
+          "kind": "money",
+          "width": 15,
+          "numberFormat": "#,##0.00",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "الإجمالي (ج.م)",
+          "kind": "money",
+          "width": 17,
+          "numberFormat": "#,##0.00",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": "bold"
+        },
+        {
+          "name": "الحالة",
+          "kind": "enum",
+          "width": 16,
+          "numberFormat": "@",
+          "align": "center",
+          "options": [
+            "مكتمل",
+            "غير مكتمل"
+          ],
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "ملاحظات",
+          "kind": "long",
+          "width": 34,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "آخر تعديل",
+          "kind": "dt",
+          "width": 20,
+          "numberFormat": "yyyy-mm-dd  hh:mm",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "الإصدار",
+          "kind": "int",
+          "width": 12,
+          "numberFormat": "#,##0",
+          "align": "center",
+          "options": null,
+          "hidden": true,
+          "emphasis": null
+        }
+      ]
+    },
+    {
+      "key": "payments",
+      "title": "المدفوعات",
+      "description": "كل دفعة سجل مستقل مرتبط بعملية شراء. إجمالي المدفوع في كل التقارير = مجموع الدفعات الفعّالة هنا.",
+      "tabColor": "#1F6B2C",
+      "freezeColumns": 4,
+      "columns": [
+        {
+          "name": "المعرّف",
+          "kind": "id",
+          "width": 15,
+          "numberFormat": "@",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "رقم الدفعة",
+          "kind": "text",
+          "width": 13,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "نوع المستفيد",
+          "kind": "enum",
+          "width": 16,
+          "numberFormat": "@",
+          "align": "center",
+          "options": [
+            "مزارع",
+            "مورد"
+          ],
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "اسم المستفيد",
+          "kind": "text",
+          "width": 24,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "معرّف المستفيد",
+          "kind": "id",
+          "width": 15,
+          "numberFormat": "@",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "نوع العملية",
+          "kind": "enum",
+          "width": 16,
+          "numberFormat": "@",
+          "align": "center",
+          "options": [
+            "شراء رمان",
+            "شراء تعبئة"
+          ],
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "معرّف العملية",
+          "kind": "id",
+          "width": 15,
+          "numberFormat": "@",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "معرّف البراد",
+          "kind": "id",
+          "width": 15,
+          "numberFormat": "@",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "رقم البراد",
+          "kind": "int",
+          "width": 11,
+          "numberFormat": "#,##0",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "المبلغ (ج.م)",
+          "kind": "money",
+          "width": 17,
+          "numberFormat": "#,##0.00",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": "paid"
+        },
+        {
+          "name": "طريقة الدفع",
+          "kind": "enum",
+          "width": 16,
+          "numberFormat": "@",
+          "align": "center",
+          "options": [
+            "نقدًا",
+            "تحويل بنكي",
+            "محفظة إلكترونية"
+          ],
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "تاريخ الدفعة",
+          "kind": "dt",
+          "width": 20,
+          "numberFormat": "yyyy-mm-dd  hh:mm",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "الحالة",
+          "kind": "enum",
+          "width": 16,
+          "numberFormat": "@",
+          "align": "center",
+          "options": [
+            "فعّالة",
+            "ملغاة"
+          ],
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "سبب الإلغاء",
+          "kind": "long",
+          "width": 34,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "ملاحظات",
+          "kind": "long",
+          "width": 34,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "تاريخ الإنشاء",
+          "kind": "dt",
+          "width": 20,
+          "numberFormat": "yyyy-mm-dd  hh:mm",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "أنشأها",
+          "kind": "text",
+          "width": 20,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "الإصدار",
+          "kind": "int",
+          "width": 12,
+          "numberFormat": "#,##0",
+          "align": "center",
+          "options": null,
+          "hidden": true,
+          "emphasis": null
+        },
+        {
+          "name": "مفتاح عدم التكرار",
+          "kind": "id",
+          "width": 15,
+          "numberFormat": "@",
+          "align": "center",
+          "options": null,
+          "hidden": true,
+          "emphasis": null
+        }
+      ]
+    },
+    {
+      "key": "users",
+      "title": "المستخدمون",
+      "description": "الحسابات المسموح لها فقط. يعدّلها المدير من داخل التطبيق، والخادم يتحقق منها مع كل طلب.",
+      "tabColor": "#1C1714",
+      "freezeColumns": 3,
+      "columns": [
+        {
+          "name": "المعرّف",
+          "kind": "id",
+          "width": 15,
+          "numberFormat": "@",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "البريد (Gmail)",
+          "kind": "email",
+          "width": 32,
+          "numberFormat": "@",
+          "align": "left",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "الاسم",
+          "kind": "text",
+          "width": 20,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "الدور",
+          "kind": "enum",
+          "width": 16,
+          "numberFormat": "@",
+          "align": "center",
+          "options": [
+            "مدير",
+            "موظف إدخال",
+            "مشاهدة فقط"
+          ],
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "الحالة",
+          "kind": "enum",
+          "width": 16,
+          "numberFormat": "@",
+          "align": "center",
+          "options": [
+            "نشط",
+            "معطّل"
+          ],
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "إضافة المزارعين",
+          "kind": "bool",
+          "width": 13,
+          "numberFormat": "@",
+          "align": "center",
+          "options": [
+            "نعم",
+            "لا"
+          ],
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "تسجيل المشتريات",
+          "kind": "bool",
+          "width": 13,
+          "numberFormat": "@",
+          "align": "center",
+          "options": [
+            "نعم",
+            "لا"
+          ],
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "تعديل عمليات الآخرين",
+          "kind": "bool",
+          "width": 15,
+          "numberFormat": "@",
+          "align": "center",
+          "options": [
+            "نعم",
+            "لا"
+          ],
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "تسجيل المدفوعات",
+          "kind": "bool",
+          "width": 13,
+          "numberFormat": "@",
+          "align": "center",
+          "options": [
+            "نعم",
+            "لا"
+          ],
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "مشتريات التعبئة",
+          "kind": "bool",
+          "width": 13,
+          "numberFormat": "@",
+          "align": "center",
+          "options": [
+            "نعم",
+            "لا"
+          ],
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "تقفيل البرادات",
+          "kind": "bool",
+          "width": 13,
+          "numberFormat": "@",
+          "align": "center",
+          "options": [
+            "نعم",
+            "لا"
+          ],
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "تاريخ الإضافة",
+          "kind": "dt",
+          "width": 20,
+          "numberFormat": "yyyy-mm-dd  hh:mm",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "أضافه",
+          "kind": "text",
+          "width": 20,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "آخر تعديل",
+          "kind": "dt",
+          "width": 20,
+          "numberFormat": "yyyy-mm-dd  hh:mm",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "الإصدار",
+          "kind": "int",
+          "width": 12,
+          "numberFormat": "#,##0",
+          "align": "center",
+          "options": null,
+          "hidden": true,
+          "emphasis": null
+        }
+      ]
+    },
+    {
+      "key": "settings",
+      "title": "الإعدادات",
+      "description": "إعدادات العمل غير السرية فقط. لا تُكتب هنا أي كلمات مرور أو مفاتيح.",
+      "tabColor": "#1C1714",
+      "freezeColumns": 1,
+      "columns": [
+        {
+          "name": "المفتاح",
+          "kind": "text",
+          "width": 28,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "القيمة",
+          "kind": "text",
+          "width": 34,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "الوصف",
+          "kind": "long",
+          "width": 60,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        }
+      ]
+    },
+    {
+      "key": "item_types",
+      "title": "أصناف التعبئة",
+      "description": "قائمة أصناف مواد التعبئة ووحداتها الافتراضية. يضيف المدير أصنافًا جديدة من التطبيق.",
+      "tabColor": "#1F6B2C",
+      "freezeColumns": 2,
+      "columns": [
+        {
+          "name": "المعرّف",
+          "kind": "id",
+          "width": 15,
+          "numberFormat": "@",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "الصنف",
+          "kind": "text",
+          "width": 26,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "الوحدة الافتراضية",
+          "kind": "enum",
+          "width": 16,
+          "numberFormat": "@",
+          "align": "center",
+          "options": [
+            "قطعة",
+            "رزمة",
+            "لفة",
+            "رول",
+            "كرتونة",
+            "كغ"
+          ],
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "الترتيب",
+          "kind": "int",
+          "width": 12,
+          "numberFormat": "#,##0",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "نشط",
+          "kind": "bool",
+          "width": 13,
+          "numberFormat": "@",
+          "align": "center",
+          "options": [
+            "نعم",
+            "لا"
+          ],
+          "hidden": false,
+          "emphasis": null
+        }
+      ]
+    },
+    {
+      "key": "audit",
+      "title": "سجل التعديلات",
+      "description": "كل إنشاء وتعديل وإلغاء وتقفيل وإعادة فتح يُسجَّل هنا تلقائيًا ولا يُحذف.",
+      "tabColor": "#1C1714",
+      "freezeColumns": 2,
+      "columns": [
+        {
+          "name": "المعرّف",
+          "kind": "id",
+          "width": 15,
+          "numberFormat": "@",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "التاريخ والوقت",
+          "kind": "dt",
+          "width": 20,
+          "numberFormat": "yyyy-mm-dd  hh:mm",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "المستخدم",
+          "kind": "text",
+          "width": 18,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "الإجراء",
+          "kind": "enum",
+          "width": 16,
+          "numberFormat": "@",
+          "align": "center",
+          "options": [
+            "إنشاء",
+            "تعديل",
+            "إلغاء",
+            "تقفيل",
+            "إعادة فتح",
+            "دفعة"
+          ],
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "نوع السجل",
+          "kind": "text",
+          "width": 16,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "معرّف السجل",
+          "kind": "id",
+          "width": 15,
+          "numberFormat": "@",
+          "align": "center",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "الوصف",
+          "kind": "long",
+          "width": 46,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "القيم السابقة",
+          "kind": "long",
+          "width": 34,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "القيم الجديدة",
+          "kind": "long",
+          "width": 34,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        },
+        {
+          "name": "السبب",
+          "kind": "long",
+          "width": 34,
+          "numberFormat": "@",
+          "align": "right",
+          "options": null,
+          "hidden": false,
+          "emphasis": null
+        }
+      ]
+    }
+  ]
+}

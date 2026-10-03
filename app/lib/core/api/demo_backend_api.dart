@@ -1735,7 +1735,9 @@ class DemoBackendApi extends BackendApi with BackendActions {
       newFarmerName = _str(p, 'newFarmerName', 'اسم المزارع الجديد', required: true, max: 80);
       final dup = _duplicateFarmer(newFarmerName, activeOnly: true);
       if (dup != null) {
-        _invalid('newFarmerName', 'يوجد مزارع مسجل بالاسم «${dup.name}» (رقم ${dup.no}). اختره من القائمة بدل إضافته مرة أخرى.',
+        _invalid(
+            'newFarmerName',
+            'يوجد مزارع مسجل بالاسم «${dup.name}» (رقم ${dup.no}). اختره من القائمة بدل إضافته مرة أخرى.',
             {'existing': _farmerJson(dup)});
       }
     }
@@ -1771,8 +1773,8 @@ class DemoBackendApi extends BackendApi with BackendActions {
             required: true, min: 1, max: _amountMax, fmt: _fmtMoney)!;
         if (amount >= value) {
           _invalid('payment.amountPiasters',
-              '«المبلغ المدفوع» (${_fmtMoney(amount)}) يجب أن يكون أقل من قيمة العملية (${_fmtMoney(value)}) في الدفع الجزئي. '
-              'اختر «دفع كامل» إن دُفعت القيمة كلها.',
+              '«المبلغ المدفوع» (${_fmtMoney(amount)}) يجب أن يكون أقل من قيمة العملية (${_fmtMoney(value)}) '
+              'في الدفع الجزئي. اختر «دفع كامل» إن دُفعت القيمة كلها.',
               {'valuePiasters': value});
         }
       }
@@ -1858,8 +1860,9 @@ class DemoBackendApi extends BackendApi with BackendActions {
     final boxes = has('boxes') ? _boxesIn(c['boxes']) : x.boxes;
     final avg = has('avgWeightGrams') ? _avgIn(c['avgWeightGrams']) : x.avg;
     final price = has('pricePerKgPiasters') ? _priceIn(c['pricePerKgPiasters']) : x.price;
-    final method =
-        has('weightMethod') ? _inEnum(c['weightMethod'], 'weightMethod', 'طريقة حساب الوزن', _weightMethods, required: true)! : curMethod;
+    final method = has('weightMethod')
+        ? _inEnum(c['weightMethod'], 'weightMethod', 'طريقة حساب الوزن', _weightMethods, required: true)!
+        : curMethod;
     var samples = const <int>[];
     int? tare;
     if (method == 'sample') {
@@ -1873,7 +1876,8 @@ class DemoBackendApi extends BackendApi with BackendActions {
 
     _Farmer? farmer;
     if (has('farmerId')) {
-      final fid = _inStr(c['farmerId'], 'farmerId', 'المزارع', required: true, max: 64, hint: 'اختره من القائمة ثم أعد المحاولة.');
+      final fid = _inStr(c['farmerId'], 'farmerId', 'المزارع',
+          required: true, max: 64, hint: 'اختره من القائمة ثم أعد المحاولة.');
       if (fid != x.farmerId) {
         farmer = _activeFarmer(fid, 'farmerId');
         if (_activeCount(id) > 0) {
@@ -1939,7 +1943,9 @@ class DemoBackendApi extends BackendApi with BackendActions {
     }
     final count = _activeCount(id);
     if (count > 0) {
-      _invalid('id', 'على عملية الشراء $id $count دفعة فعّالة بمبلغ ${_fmtMoney(_paidFor(id))}. ألغِ الدفعات أولًا ثم ألغِ العملية.',
+      _invalid(
+          'id',
+          'على عملية الشراء $id $count دفعة فعّالة بمبلغ ${_fmtMoney(_paidFor(id))}. ألغِ الدفعات أولًا ثم ألغِ العملية.',
           {'activePayments': count});
     }
     x
@@ -2145,7 +2151,8 @@ class DemoBackendApi extends BackendApi with BackendActions {
         if (!seen.add(id)) _invalid('$f.id', 'الصنف رقم $n مكرر في القائمة. احذف التكرار ثم احفظ.', {'index': i, 'id': id});
       }
       final name = _inStr(x['name'], '$f.name', 'اسم الصنف رقم $n', required: true, max: 80);
-      final unit = _inStr(x['unit'], '$f.unit', 'وحدة الصنف رقم $n', required: true, max: 20, hint: 'اختر الوحدة من القائمة.');
+      final unit =
+          _inStr(x['unit'], '$f.unit', 'وحدة الصنف رقم $n', required: true, max: 20, hint: 'اختر الوحدة من القائمة.');
       if (!_units.contains(unit)) {
         _invalid('$f.unit', 'وحدة الصنف رقم $n («$unit») غير معروفة. اختر واحدة من: ${_units.join('، ')}.',
             {'index': i, 'allowed': _units});
@@ -2318,7 +2325,9 @@ class DemoBackendApi extends BackendApi with BackendActions {
     }
     final count = _activeCount(id);
     if (count > 0) {
-      _invalid('id', 'على ${_pkLabel(x)} $count دفعة فعّالة بمبلغ ${_fmtMoney(_paidFor(id))}. ألغِ الدفعات أولًا ثم ألغِ الشراء.',
+      _invalid(
+          'id',
+          'على ${_pkLabel(x)} $count دفعة فعّالة بمبلغ ${_fmtMoney(_paidFor(id))}. ألغِ الدفعات أولًا ثم ألغِ الشراء.',
           {'activePayments': count});
     }
     final line = 'سبب الإلغاء: $reason';
@@ -2353,9 +2362,8 @@ class DemoBackendApi extends BackendApi with BackendActions {
     final want = _norm(name);
     final dup = _itemTypes.where((t) => !identical(t, rec) && _norm(t.name) == want).firstOrNull;
     if (dup != null) {
-      _invalid('name',
-          'يوجد صنف بالاسم «${dup.name}» بالفعل${dup.active ? '' : ' (غير نشط، يمكنك تفعيله بدل إضافته)'}. اختر اسمًا مختلفًا.',
-          {'existing': _itemTypeJson(dup)});
+      final hint = dup.active ? '' : ' (غير نشط، يمكنك تفعيله بدل إضافته)';
+      _invalid('name', 'يوجد صنف بالاسم «${dup.name}» بالفعل$hint. اختر اسمًا مختلفًا.', {'existing': _itemTypeJson(dup)});
     }
     final order = _inInt(p['order'], 'order', 'الترتيب', min: 1, max: 100000) ??
         rec?.order ??

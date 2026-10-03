@@ -7,6 +7,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rumman_calculator/app/app_scope.dart';
 import 'package:rumman_calculator/core/api/backend_api.dart';
 import 'package:rumman_calculator/core/auth/auth_controller.dart';
+import 'package:rumman_calculator/core/sync/data_changes.dart';
+import 'package:rumman_calculator/core/sync/outbox.dart';
 import 'package:rumman_calculator/theme/app_theme.dart';
 
 const phoneSize = Size(390, 844);
@@ -30,14 +32,20 @@ Future<void> loadAppFonts() async {
 }
 
 /// يبني [child] داخل التطبيق: السمة، العربية، الاتجاه من اليمين لليسار، و[AppScope].
+///
+/// [outbox] افتراضيًا قائمة في الذاكرة دون مستخدم مربوط (submit يرسل مباشرة ويرمي أخطاء الاتصال).
 Future<void> pumpTestApp(
   WidgetTester tester,
   Widget child, {
   required BackendApi api,
   required AuthController auth,
+  Outbox? outbox,
+  DataChanges? changes,
   Size size = phoneSize,
   bool settle = true,
 }) async {
+  final box = outbox ?? Outbox(api: api, storage: MemoryOutboxStorage());
+  if (outbox == null) addTearDown(box.dispose);
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -45,6 +53,8 @@ Future<void> pumpTestApp(
     AppScope(
       api: api,
       auth: auth,
+      outbox: box,
+      changes: changes ?? DataChanges(),
       child: MaterialApp(
         theme: buildAppTheme(),
         debugShowCheckedModeBanner: false,

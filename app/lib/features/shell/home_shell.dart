@@ -5,10 +5,14 @@ import '../../core/auth/auth_controller.dart';
 import '../../core/models/user.dart';
 import '../../theme/app_theme.dart';
 import '../../ui/ui.dart';
+import '../coolers/coolers_screen.dart';
 import '../dashboard/dashboard_screen.dart';
+import '../farmers/farmers_screen.dart';
+import '../packaging/packaging_screen.dart';
+import '../payments/payments_screen.dart';
+import '../reports/reports_screen.dart';
 import '../settings/settings_screen.dart';
 import 'navigation_panel.dart';
-import 'placeholder_screen.dart';
 import 'shell_scope.dart';
 import 'shell_section.dart';
 
@@ -158,12 +162,12 @@ class _HomeShellState extends State<HomeShell> {
 
   Widget _body(ShellSection section) => switch (section) {
         ShellSection.dashboard => const DashboardScreen(),
+        ShellSection.coolers => const CoolersScreen(),
+        ShellSection.farmers => const FarmersScreen(),
+        ShellSection.packaging => const PackagingScreen(),
+        ShellSection.payments => const PaymentsScreen(),
+        ShellSection.reports => const ReportsScreen(),
         ShellSection.settings => const SettingsScreen(),
-        _ => SectionPlaceholder(
-            title: section.label,
-            icon: section.icon,
-            onBack: () => _select(ShellSection.dashboard),
-          ),
       };
 }
 

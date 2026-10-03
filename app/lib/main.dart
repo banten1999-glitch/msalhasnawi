@@ -13,6 +13,8 @@ import 'core/auth/auth_controller.dart';
 import 'core/auth/google_auth_controller.dart';
 import 'core/auth/google_sign_in_service.dart';
 import 'core/auth/session_store.dart';
+import 'core/sync/data_changes.dart';
+import 'core/sync/outbox.dart';
 import 'features/auth/auth_gate.dart';
 import 'screens/splash_screen.dart';
 import 'theme/app_theme.dart';
@@ -30,11 +32,12 @@ BackendApi createBackendApi() {
 }
 
 class RummanApp extends StatefulWidget {
-  /// [api] و[auth] للاختبارات؛ في التطبيق يُنشآن من إعدادات البناء.
-  const RummanApp({super.key, this.api, this.auth, this.homeBuilder});
+  /// [api] و[auth] و[outbox] للاختبارات؛ في التطبيق تُنشأ من إعدادات البناء.
+  const RummanApp({super.key, this.api, this.auth, this.outbox, this.homeBuilder});
 
   final BackendApi? api;
   final AuthController? auth;
+  final Outbox? outbox;
 
   /// للاختبارات: بديل الواجهة الرئيسية بعد الدخول.
   final WidgetBuilder? homeBuilder;
@@ -53,15 +56,39 @@ class _RummanAppState extends State<RummanApp> {
         store: SessionStore(namespace: AppConfig.demoMode ? 'demo' : 'live'),
       );
 
+  late final bool _ownsOutbox = widget.outbox == null;
+  late final Outbox _outbox = widget.outbox ?? Outbox(api: _api);
+  final _changes = DataChanges();
+  StreamSubscription<OutboxEntry>? _sentSub;
+  AppLifecycleListener? _lifecycle;
+  bool _wasOffline = false;
+
   @override
   void initState() {
     super.initState();
+    _auth.addListener(_syncOutboxWithAuth);
+    _sentSub = _outbox.sent.listen((_) => _changes.bump());
+    // عند العودة إلى التطبيق نرسل ما بقي في قائمة المزامنة.
+    _lifecycle = AppLifecycleListener(onResume: () => unawaited(_outbox.flush()));
     // تُستعاد الجلسة أثناء شاشة البداية (3 ثوانٍ).
     unawaited(_auth.restore());
   }
 
+  /// القائمة لكل مستخدم: تُحمَّل بعد الدخول وتُخفى عند الخروج، وتُرسل فور عودة الاتصال.
+  void _syncOutboxWithAuth() {
+    final signedIn = _auth.status == AuthStatus.signedIn && _auth.user != null;
+    unawaited(_outbox.bindUser(signedIn ? _auth.user!.email : null));
+    if (signedIn && _wasOffline && !_auth.offline) unawaited(_outbox.flush());
+    _wasOffline = _auth.offline;
+  }
+
   @override
   void dispose() {
+    _auth.removeListener(_syncOutboxWithAuth);
+    unawaited(_sentSub?.cancel());
+    _lifecycle?.dispose();
+    if (_ownsOutbox) _outbox.dispose();
+    _changes.dispose();
     if (_ownsAuth) _auth.dispose();
     final api = _api;
     if (widget.api == null && api is HttpBackendApi) api.close();
@@ -73,6 +100,8 @@ class _RummanAppState extends State<RummanApp> {
     return AppScope(
       api: _api,
       auth: _auth,
+      outbox: _outbox,
+      changes: _changes,
       child: MaterialApp(
         title: 'حاسبة الرمان',
         debugShowCheckedModeBanner: false,

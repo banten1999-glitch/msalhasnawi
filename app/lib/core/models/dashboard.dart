@@ -85,6 +85,7 @@ class CoolerSummary {
     this.totalCostPiasters = 0,
     this.avgPricePerKgPiasters = 0,
     this.version = 1,
+    this.closeSnapshot,
   });
 
   factory CoolerSummary.fromJson(Map<String, dynamic> j) => CoolerSummary(
@@ -111,6 +112,9 @@ class CoolerSummary {
         totalCostPiasters: _i(j['totalCostPiasters']),
         avgPricePerKgPiasters: _i(j['avgPricePerKgPiasters']),
         version: _i(j['version']) == 0 ? 1 : _i(j['version']),
+        closeSnapshot: j['closeSnapshot'] is Map
+            ? CloseSnapshot.fromJson((j['closeSnapshot'] as Map).cast<String, dynamic>())
+            : null,
       );
 
   final String id;
@@ -137,8 +141,49 @@ class CoolerSummary {
   final int avgPricePerKgPiasters;
   final int version;
 
+  /// أرقام «عند التقفيل» كما حُفظت لحظة آخر تقفيل (null لبراد لم يُقفَّل قط).
+  final CloseSnapshot? closeSnapshot;
+
   /// «براد 14 · شحنة دمياط»
   String get title => name.isEmpty ? 'براد $no' : 'براد $no · $name';
+}
+
+/// أرقام البراد المحفوظة عند التقفيل (أعمدة «عند التقفيل»). الأرقام الحية في [CoolerSummary] قد تختلف
+/// بعدها بسبب دفعات لاحقة أو تكلفة تعبئة متأخرة.
+class CloseSnapshot {
+  const CloseSnapshot({
+    this.farmers = 0,
+    this.purchases = 0,
+    this.boxes = 0,
+    this.weightGrams = 0,
+    this.valuePiasters = 0,
+    this.paidPiasters = 0,
+    this.remainingPiasters = 0,
+    this.packagingPiasters = 0,
+    this.totalCostPiasters = 0,
+  });
+
+  factory CloseSnapshot.fromJson(Map<String, dynamic> j) => CloseSnapshot(
+        farmers: _i(j['farmers']),
+        purchases: _i(j['purchases']),
+        boxes: _i(j['boxes']),
+        weightGrams: _i(j['weightGrams']),
+        valuePiasters: _i(j['valuePiasters']),
+        paidPiasters: _i(j['paidPiasters']),
+        remainingPiasters: _i(j['remainingPiasters']),
+        packagingPiasters: _i(j['packagingPiasters']),
+        totalCostPiasters: _i(j['totalCostPiasters']),
+      );
+
+  final int farmers;
+  final int purchases;
+  final int boxes;
+  final int weightGrams;
+  final int valuePiasters;
+  final int paidPiasters;
+  final int remainingPiasters;
+  final int packagingPiasters;
+  final int totalCostPiasters;
 }
 
 class ActivityItem {

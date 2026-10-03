@@ -6,6 +6,7 @@ import 'package:rumman_calculator/core/api/backend_api.dart';
 import 'package:rumman_calculator/core/api/demo_backend_api.dart';
 import 'package:rumman_calculator/core/auth/google_auth_controller.dart';
 import 'package:rumman_calculator/core/auth/session_store.dart';
+import 'package:rumman_calculator/core/sync/outbox.dart';
 import 'package:rumman_calculator/features/auth/auth_gate.dart';
 import 'package:rumman_calculator/features/auth/login_screen.dart';
 import 'package:rumman_calculator/features/auth/not_allowed_screen.dart';
@@ -37,7 +38,7 @@ void main() {
       configured: true,
     );
     addTearDown(auth.dispose);
-    await tester.pumpWidget(RummanApp(api: api, auth: auth));
+    await tester.pumpWidget(RummanApp(api: api, auth: auth, outbox: Outbox(api: api, storage: MemoryOutboxStorage())));
     expect(find.byType(SplashScreen), findsOneWidget);
     expect(find.byType(AuthGate), findsNothing);
     await tester.pump(const Duration(milliseconds: 3100));

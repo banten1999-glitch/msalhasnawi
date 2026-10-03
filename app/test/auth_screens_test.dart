@@ -12,6 +12,8 @@ import 'package:rumman_calculator/core/auth/auth_controller.dart';
 import 'package:rumman_calculator/core/auth/google_auth_controller.dart';
 import 'package:rumman_calculator/core/auth/google_sign_in_service.dart';
 import 'package:rumman_calculator/core/auth/session_store.dart';
+import 'package:rumman_calculator/core/sync/data_changes.dart';
+import 'package:rumman_calculator/core/sync/outbox.dart';
 import 'package:rumman_calculator/features/auth/auth_gate.dart';
 import 'package:rumman_calculator/features/auth/auth_status_screens.dart';
 import 'package:rumman_calculator/features/auth/login_screen.dart';
@@ -26,6 +28,8 @@ Map<String, dynamic> _login() => {'session': 'S', 'expiresAt': '', 'user': userJ
 Widget _app(BackendApi api, AuthController auth) => AppScope(
       api: api,
       auth: auth,
+      outbox: Outbox(api: api, storage: MemoryOutboxStorage()),
+      changes: DataChanges(),
       child: MaterialApp(
         theme: buildAppTheme(),
         locale: const Locale('ar', 'EG'),

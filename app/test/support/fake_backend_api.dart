@@ -1,4 +1,5 @@
 import 'package:rumman_calculator/core/api/api_exception.dart';
+import 'package:rumman_calculator/core/api/backend_actions.dart';
 import 'package:rumman_calculator/core/api/backend_api.dart';
 import 'package:rumman_calculator/core/models/dashboard.dart';
 import 'package:rumman_calculator/core/models/settings.dart';
@@ -23,7 +24,10 @@ class FakeCall {
 /// خادم وهمي للاختبارات: يعيد بيانات معدّة مسبقًا ويسجّل كل استدعاء.
 ///
 /// لإظهار خطأ اضبط الحقل *Error المناسب (يُرمى في كل استدعاء حتى يُمسح).
-class FakeBackendApi implements BackendApi {
+///
+/// بقية الإجراءات (البرادات، المشتريات، المدفوعات، التعبئة…) تمر عبر [BackendActions] إلى [call]:
+/// سجّل لها ردًا في [handlers] (أو [errors] لرمي خطأ).
+class FakeBackendApi extends BackendApi with BackendActions {
   FakeBackendApi({
     DashboardData? dashboardData,
     List<Map<String, dynamic>>? coolers,
@@ -73,6 +77,13 @@ class FakeBackendApi implements BackendApi {
   BusinessSettings settingsResult;
   Object? settingsError;
 
+  // ------------------------------------------------------------------ أي إجراء آخر
+  /// ردود الإجراءات التي تمر عبر [call]: الحمولة ← data.
+  final handlers = <String, Map<String, dynamic> Function(Map<String, dynamic> payload)>{};
+
+  /// خطأ يُرمى لإجراء معيّن عبر [call].
+  final errors = <String, Object>{};
+
   int count(String action) => calls.where((c) => c.action == action).length;
   List<FakeCall> callsOf(String action) => calls.where((c) => c.action == action).toList();
 
@@ -91,6 +102,10 @@ class FakeBackendApi implements BackendApi {
     String? requestId,
   }) async {
     await _record(action, payload, requestId);
+    final error = errors[action];
+    if (error != null) _throw(error);
+    final handler = handlers[action];
+    if (handler != null) return handler(Map<String, dynamic>.of(payload));
     if (action == 'coolers.list') {
       if (coolersError != null) _throw(coolersError!);
       return {'coolers': coolers};

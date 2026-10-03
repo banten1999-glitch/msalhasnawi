@@ -156,7 +156,25 @@ function stTable_(key) {
     const lastRow = sh.getLastRow();
     const lastCol = sh.getLastColumn();
     t.lastRow = Math.max(lastRow, hr);
-    if (lastCol > 0 && lastRow >= hr) {
+    if (t.light && lastCol > 0 && lastRow >= hr) {
+      // سجل التعديلات يكبر طوال الموسم وفيه نصوص JSON طويلة: نقرأ صف العناوين وعمود المعرّف فقط
+      // (يكفيان لحساب المعرّف التالي والإضافة في آخر الصفحة) بدل الصفحة كلها مع كل حفظ.
+      t.headers = sh.getRange(hr, 1, 1, lastCol).getValues()[0].map(stHeaderName_);
+      t.headers.forEach(function (h, j) {
+        if (h && t.col[h] === undefined) t.col[h] = j;
+      });
+      const lightKey = t.col[keyName];
+      if (lightKey !== undefined && lastRow > hr) {
+        const ids = sh.getRange(hr + 1, lightKey + 1, lastRow - hr, 1).getValues();
+        for (let i = 0; i < ids.length; i++) {
+          const id = cellStr_(ids[i][0]);
+          if (id === '') continue;
+          const rec = { $row: hr + 1 + i, $vals: null };
+          rec[keyName] = id;
+          t.rows.push(rec);
+        }
+      }
+    } else if (lastCol > 0 && lastRow >= hr) {
       const values = sh.getRange(hr, 1, lastRow - hr + 1, lastCol).getValues();
       t.headers = values[0].map(stHeaderName_);
       t.headers.forEach(function (h, j) {
@@ -167,13 +185,7 @@ function stTable_(key) {
         for (let i = 1; i < values.length; i++) {
           const vals = values[i];
           if (cellStr_(vals[keyIdx]) === '') continue;
-          if (t.light) {
-            const rec = { $row: hr + i, $vals: null };
-            rec[keyName] = cellStr_(vals[keyIdx]);
-            t.rows.push(rec);
-          } else {
-            t.rows.push(stMakeRec_(t, hr + i, vals));
-          }
+          t.rows.push(stMakeRec_(t, hr + i, vals));
         }
       }
     }

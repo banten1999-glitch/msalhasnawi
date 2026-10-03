@@ -288,7 +288,9 @@ id `AU-…`, time, user name (email), action label (إنشاء/تعديل/إلغ
   then write. If a later write throws, earlier rows written in that request are compensated (purchase/payment
   marked `ملغاة` with reason `تعذّر إكمال الحفظ`), `LAST_ERROR` is recorded, and `INTERNAL` is returned; the
   `requestId` result is not cached so a retry can succeed.
-* **Batch reads**: one `getValues()` per sheet per request (memoised); dashboard cached 60 s.
+* **Batch reads**: one `getValues()` per sheet per request (memoised); dashboard cached 60 s. Exception: the
+  audit sheet (`سجل التعديلات`), which grows all season with long JSON cells, is read as two narrow ranges — its
+  header row and its ID column — never as a whole sheet.
 * A success response is returned only after `SpreadsheetApp.flush()`.
 
 ## 8. Apps Script API subset

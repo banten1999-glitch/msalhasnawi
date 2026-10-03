@@ -194,9 +194,29 @@ test('batch reads: at most one getValues() per sheet per request', () => {
     env.call(admin, action, payload);
     const by = readsBySheet(env);
     for (const title of Object.keys(by)) {
-      assert.ok(by[title].getValues <= 1, `${action}: ${title} read with ${by[title].getValues} getValues() calls`);
+      // سجل التعديلات: قراءتان ضيقتان (صف العناوين وعمود المعرّف) بدل الصفحة كلها — انظر الاختبار التالي.
+      const max = title === 'سجل التعديلات' ? 2 : 1;
+      assert.ok(by[title].getValues <= max, `${action}: ${title} read with ${by[title].getValues} getValues() calls`);
     }
   }
+});
+
+test('audit sheet: writes read only its header row and ID column, never the JSON columns', () => {
+  const { env, admin } = adminEnv();
+  const c = newCooler(env, admin);
+  const f = newFarmer(env, admin, 'حسن');
+  for (let i = 0; i < 3; i++) buy(env, admin, c, f, { payment: { mode: 'full', method: 'cash' } });
+  const r = buy(env, admin, c, f, { payment: { mode: 'none' } });
+  assert.ok(r.purchase.id);
+  const audit = env.lastRequest.reads.filter((x) => x.phase === 'request' && x.sheet === 'سجل التعديلات' && x.op === 'getValues');
+  assert.ok(audit.length >= 1, 'the audit sheet is read to number the new rows');
+  for (const x of audit) {
+    assert.ok(x.numRows === 1 || x.numCols === 1,
+      `audit read must be one row or one column, got ${x.numRows}×${x.numCols} at ${x.row},${x.col}`);
+  }
+  // الأرقام متتالية رغم القراءة الجزئية.
+  const ids = auditRows(env).map((row) => row['المعرّف']).filter(Boolean);
+  assert.equal(new Set(ids).size, ids.length, 'audit IDs stay unique');
 });
 
 test('reads never write to the spreadsheet', () => {

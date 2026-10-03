@@ -35,7 +35,7 @@ const SCHEMA = {
     {
       "key": "coolers",
       "title": "البرادات",
-      "description": "بيانات كل براد وحالته. أعمدة «عند التقفيل» تُحفظ مرة واحدة لحظة التقفيل ولا تتغير بعدها.",
+      "description": "بيانات كل براد وحالته. أعمدة «عند التقفيل» تُحفظ لحظة التقفيل ولا تغيّرها إعادة الفتح؛ إن أُعيد تقفيل البراد تُستبدل بأرقام التقفيل الأخير، والأرقام السابقة محفوظة في «سجل التعديلات».",
       "tabColor": "#A00B1E",
       "freezeColumns": 2,
       "columns": [
@@ -271,6 +271,16 @@ const SCHEMA = {
           "options": null,
           "hidden": true,
           "emphasis": null
+        },
+        {
+          "name": "مفتاح عدم التكرار",
+          "kind": "id",
+          "width": 15,
+          "numberFormat": "@",
+          "align": "center",
+          "options": null,
+          "hidden": true,
+          "emphasis": null
         }
       ]
     },
@@ -379,6 +389,16 @@ const SCHEMA = {
           "kind": "int",
           "width": 12,
           "numberFormat": "#,##0",
+          "align": "center",
+          "options": null,
+          "hidden": true,
+          "emphasis": null
+        },
+        {
+          "name": "مفتاح عدم التكرار",
+          "kind": "id",
+          "width": 15,
+          "numberFormat": "@",
           "align": "center",
           "options": null,
           "hidden": true,
@@ -3023,12 +3043,23 @@ function cfgSessionSecret_() {
   return secret;
 }
 
-/** يسجل آخر خطأ غير متوقع في LAST_ERROR = {at, message}. لا يرمي أبدًا. */
+/**
+ * يحذف ما قد يكون اعتمادًا سريًا من نص يُحفظ أو يُعرض: قيمة id_token في الروابط، وأي رمز بصيغة JWT
+ * أو جلسة (أجزاء base64url تبدأ بـ eyJ = بداية JSON). LAST_ERROR يراه كل مدير، فلا يجوز أن يحمل رمزًا
+ * يمكن استعماله للدخول باسم صاحبه.
+ */
+function cfgRedact_(text) {
+  return String(text)
+    .replace(/id_token=[^\s&"'<>]+/g, 'id_token=<redacted>')
+    .replace(/eyJ[A-Za-z0-9_-]+={0,2}\.[A-Za-z0-9_-]+={0,2}(?:\.[A-Za-z0-9_-]+={0,2})?/g, '<redacted-token>');
+}
+
+/** يسجل آخر خطأ غير متوقع في LAST_ERROR = {at, message} بعد حذف الرموز السرية. لا يرمي أبدًا. */
 function cfgRecordError_(message) {
   try {
     let at;
     try { at = fmtIso_(new Date()); } catch (e) { at = new Date().toISOString(); }
-    cfgSet_(RMN_PROP.lastError, JSON.stringify({ at: at, message: String(message).slice(0, 1500) }));
+    cfgSet_(RMN_PROP.lastError, JSON.stringify({ at: at, message: cfgRedact_(message).slice(0, 1500) }));
   } catch (e) {
     // لا شيء: تسجيل الخطأ لا يجوز أن يُفشل الرد.
   }
@@ -3689,16 +3720,60 @@ function authInvalidToken_(message, reason) {
 }
 
 /**
+ * فحص محلي رخيص قبل استدعاء tokeninfo: auth.login متاح دون جلسة، وكل استدعاء لـ UrlFetchApp يُحسب من
+ * الحصة اليومية، فلا نصرفه على رمز لا يمكن أن يقبله tokeninfo أصلًا. يُشترط شكل JWT (ثلاثة أجزاء
+ * base64url) وأن تكون حمولته (دون التحقق من التوقيع) لعميل مسموح، ومن Google، وغير منتهية.
+ * tokeninfo يبقى الفحص الحاسم للتوقيع وكل الشروط.
+ */
+function authPrecheckIdToken_(idToken) {
+  const malformed = function () {
+    return authInvalidToken_('رمز الدخول من Google غير صالح. سجّل الدخول بحساب Google مرة أخرى.', 'malformed');
+  };
+  const parts = String(idToken).trim().split('.');
+  const seg = /^[A-Za-z0-9_-]+={0,2}$/;
+  if (parts.length !== 3 || !seg.test(parts[0]) || !seg.test(parts[1]) || !seg.test(parts[2])) throw malformed();
+  let claims = null;
+  try {
+    let b64 = parts[1].replace(/=+$/, '');
+    while (b64.length % 4) b64 += '=';
+    claims = JSON.parse(Utilities.newBlob(Utilities.base64DecodeWebSafe(b64)).getDataAsString());
+  } catch (e) {
+    claims = null;
+  }
+  if (!isPlainObject_(claims)) throw malformed();
+  const allowed = cfgAllowedClientIds_();
+  const auds = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
+  if (!auds.some(function (a) { return allowed.indexOf(String(a)) >= 0; })) throw authAudienceError_();
+  if (RMN_CFG.tokenIssuers.indexOf(String(claims.iss || '')) < 0) throw authIssuerError_();
+  const exp = Number(claims.exp);
+  if (!isFinite(exp) || exp * 1000 <= rq_().now.getTime()) throw authTokenExpiredError_();
+}
+
+function authAudienceError_() {
+  return authInvalidToken_('رمز الدخول صادر لتطبيق غير معروف. استخدم تطبيق حاسبة الرمان الرسمي ثم سجّل الدخول مرة أخرى.', 'audience');
+}
+
+function authIssuerError_() {
+  return authInvalidToken_('رمز الدخول ليس صادرًا من Google. سجّل الدخول بحساب Google مرة أخرى.', 'issuer');
+}
+
+function authTokenExpiredError_() {
+  return authInvalidToken_('انتهت صلاحية رمز الدخول من Google. سجّل الدخول مرة أخرى.', 'expired');
+}
+
+/**
  * يتحقق من ID token عبر tokeninfo ويعيد {email, name, sub}.
  * تُفحص: الرد 200، aud ضمن المعرّفات المسموحة، iss، email_verified، exp.
  */
 function authVerifyGoogleToken_(idToken) {
+  authPrecheckIdToken_(idToken);
   let resp;
   try {
     resp = UrlFetchApp.fetch(RMN_CFG.tokenInfoUrl + encodeURIComponent(idToken), { muteHttpExceptions: true });
   } catch (e) {
-    // العقد: أي رد غير 200 ⇒ AUTH_INVALID_TOKEN. نسجل السبب للتشخيص.
-    cfgRecordError_('tokeninfo fetch failed: ' + (e && e.message ? e.message : e));
+    // العقد: أي رد غير 200 ⇒ AUTH_INVALID_TOKEN. نسجل السبب للتشخيص، لكن رسالة UrlFetchApp تتضمن الرابط
+    // وفيه رمز الدخول نفسه، فيُحذف قبل الحفظ (LAST_ERROR يظهر لكل مدير).
+    cfgRecordError_('tokeninfo fetch failed: ' + cfgRedact_(e && e.message ? e.message : e));
     throw authInvalidToken_('تعذّر الاتصال بخدمة Google للتحقق من حسابك. تأكد من الاتصال ثم سجّل الدخول مرة أخرى بعد قليل.',
       'unavailable');
   }
@@ -3719,19 +3794,13 @@ function authVerifyGoogleToken_(idToken) {
   if (!info || typeof info !== 'object') {
     throw authInvalidToken_('تعذّر قراءة رد Google على رمز الدخول. سجّل الدخول مرة أخرى.', 'unreadable');
   }
-  if (cfgAllowedClientIds_().indexOf(String(info.aud || '')) < 0) {
-    throw authInvalidToken_('رمز الدخول صادر لتطبيق غير معروف. استخدم تطبيق حاسبة الرمان الرسمي ثم سجّل الدخول مرة أخرى.', 'audience');
-  }
-  if (RMN_CFG.tokenIssuers.indexOf(String(info.iss || '')) < 0) {
-    throw authInvalidToken_('رمز الدخول ليس صادرًا من Google. سجّل الدخول بحساب Google مرة أخرى.', 'issuer');
-  }
+  if (cfgAllowedClientIds_().indexOf(String(info.aud || '')) < 0) throw authAudienceError_();
+  if (RMN_CFG.tokenIssuers.indexOf(String(info.iss || '')) < 0) throw authIssuerError_();
   if (!(info.email_verified === true || info.email_verified === 'true')) {
     throw authInvalidToken_('بريد حساب Google غير مؤكَّد. أكّد البريد من إعدادات حساب Google ثم سجّل الدخول مرة أخرى.', 'email_unverified');
   }
   const exp = Number(info.exp);
-  if (!isFinite(exp) || exp * 1000 <= rq_().now.getTime()) {
-    throw authInvalidToken_('انتهت صلاحية رمز الدخول من Google. سجّل الدخول مرة أخرى.', 'expired');
-  }
+  if (!isFinite(exp) || exp * 1000 <= rq_().now.getTime()) throw authTokenExpiredError_();
   const email = String(info.email || '').trim().toLowerCase();
   if (!email) {
     throw authInvalidToken_('رمز الدخول لا يحتوي على بريد إلكتروني. سجّل الدخول بحساب Google يحتوي على بريد Gmail.', 'no_email');
@@ -3808,7 +3877,8 @@ function authStale_() {
 
 function authNotAllowed_(email, reason) {
   const msg = reason === 'disabled'
-    ? 'الحساب ' + email + ' معطّل. اطلب من المدير تفعيله ثم سجّل الدخول مرة أخرى.'
+    ? 'الحساب ' + email + ' معطّل: خانة «الحالة» في صفحة «المستخدمون» ليست «نشط». ' +
+      'اطلب من المدير تفعيله (اختيار «نشط») ثم سجّل الدخول مرة أخرى.'
     : 'الحساب ' + email + ' غير مسجّل في قائمة المستخدمين. اطلب من المدير إضافته ثم سجّل الدخول مرة أخرى.';
   return apiError_('NOT_ALLOWED', msg, null, { email: email, reason: reason });
 }
@@ -3932,7 +4002,9 @@ function authLogoutAction_() {
 
 /**
  * Coolers.gs — صفحة «البرادات»: الفتح والتقفيل وإعادة الفتح، وملخص كل براد.
- * أعمدة «عند التقفيل» تُكتب لحظة التقفيل فقط، وإعادة الفتح تُبقيها كما هي.
+ * أعمدة «عند التقفيل» تُكتب لحظة التقفيل فقط، وإعادة الفتح تُبقيها كما هي. إعادة التقفيل بعد إعادة
+ * الفتح تستبدلها بأرقام التقفيل الأخير (العقد §6: كل تقفيل يكتب اللقطة)، واللقطة السابقة تُحفظ في
+ * «القيم السابقة» بسجل التعديلات.
  */
 
 const RMN_SNAPSHOT_COLUMNS = Object.freeze({
@@ -3949,6 +4021,15 @@ const RMN_SNAPSHOT_COLUMNS = Object.freeze({
 
 function coolerIsClosed_(rec) {
   return enumToApi_('coolerStatus', rec['الحالة'], 'open') === 'closed';
+}
+
+/**
+ * صف براد بقي من coolers.create فشل حفظه فعُوِّض (Store.gs): مقفّل دون وقت تقفيل، وفي ملاحظاته
+ * «تعذّر إكمال الحفظ». لم يُبلَّغ به أحد (الرد كان INTERNAL)، فلا يظهر في القوائم ولا يُعدّ في اللوحة.
+ */
+function coolerIsCompensated_(rec) {
+  return coolerIsClosed_(rec) && !inPresent_(rec['تاريخ ووقت التقفيل']) &&
+    cellStr_(rec['ملاحظات']).indexOf(RMN_CFG.compensationReason) >= 0;
 }
 
 function coolerClosedError_(rec, message) {
@@ -4008,8 +4089,9 @@ function coolerSummary_(rec) {
   };
 }
 
+/** البرادات الحقيقية (دون صفوف الحفظ الفاشل) من الأحدث إلى الأقدم. */
 function coolersSorted_() {
-  const rows = stTable_('coolers').rows.slice();
+  const rows = stTable_('coolers').rows.filter(function (r) { return !coolerIsCompensated_(r); });
   rows.sort(function (a, b) { return (cellInt_(b['رقم البراد']) || 0) - (cellInt_(a['رقم البراد']) || 0); });
   return rows;
 }
@@ -4055,10 +4137,16 @@ function coolersGetAction_(p) {
   };
 }
 
-/** coolers.create {name?, carNo?, driver?, notes?} — رقم البراد = الأكبر + 1، والحالة مفتوح. */
-function coolersCreateAction_(p) {
+/**
+ * coolers.create {name?, carNo?, driver?, notes?} — رقم البراد = الأكبر + 1، والحالة مفتوح.
+ * idempotent على requestId (العقد §7): يُحفظ في «مفتاح عدم التكرار»، فإعادة الطلب نفسه بعد انتهاء ذاكرة
+ * الطلبات تعيد البراد نفسه مع replayed: true بدل فتح براد ثانٍ.
+ */
+function coolersCreateAction_(p, user, req) {
   stRequire_(stDataKeys_().concat(['audit']));
   const t = stTable_('coolers');
+  const replay = stFindByKey_(t, req && req.requestId);
+  if (replay) return { cooler: coolerSummary_(replay), replayed: true };
   const name = inStr_(p.name, 'name', 'اسم البراد / الوصف', { max: 80 });
   const carNo = inStr_(p.carNo, 'carNo', 'رقم السيارة', { max: 30 });
   const driver = inStr_(p.driver, 'driver', 'اسم السائق', { max: 80 });
@@ -4073,6 +4161,7 @@ function coolersCreateAction_(p) {
     'الحالة': 'مفتوح',
     'فتحه': userLabel_(rq_().user),
     'ملاحظات': notes,
+    'مفتاح عدم التكرار': req && req.requestId ? req.requestId : '',
   };
   const rec = stAppend_(t, [row])[0];
   auditAdd_('إنشاء', 'براد', row['المعرّف'], 'فتح البراد رقم ' + row['رقم البراد'], null, row, '');
@@ -4156,6 +4245,7 @@ function coolersReopenAction_(p) {
  * Dashboard.gs — لوحة التحكم (dashboard.get).
  *
  * الفترة تصفّي المشتريات بتاريخ العملية، والدفعات بتاريخ الدفعة، والتعبئة بتاريخ الشراء.
+ * المتبقي = ما بقي على مشتريات الفترة وتعبئتها المعتمدة (بعد كل دفعاتها الفعّالة)، فلا يكون سالبًا.
  * عدد البرادات لا يتأثر بالفترة. coolerId يقصر كل شيء على براد واحد.
  * النتيجة تُحفظ في CacheService 60 ثانية بمفتاح يضم المدخلات ونسخة البيانات (تزيد مع كل كتابة).
  */
@@ -4269,6 +4359,7 @@ function dashboardCompute_(period, coolerId, now, tz) {
     k.boxes += x.boxes;
     k.weightGrams += x.totalWeightGrams;
     k.purchaseValuePiasters += x.valuePiasters;
+    k.remainingFarmersPiasters += x.remainingPiasters;
     if (x.farmerId && !farmers[x.farmerId]) {
       farmers[x.farmerId] = true;
       k.distinctFarmers++;
@@ -4288,12 +4379,13 @@ function dashboardCompute_(period, coolerId, now, tz) {
       status: x.status, statusLabel: RMN_STATUS_LABELS[x.status],
       _t: x._t, _c: cellDate_(r['تاريخ الإنشاء']),
     });
-    if (x.status === 'approved') k.packagingApprovedPiasters += x.completeTotalPiasters;
+    if (x.status === 'approved') {
+      k.packagingApprovedPiasters += x.completeTotalPiasters;
+      k.remainingSuppliersPiasters += x.remainingPiasters;
+    }
   });
 
   // الدفعات
-  let paidFarmers = 0;
-  let paidSuppliers = 0;
   stTable_('payments').rows.forEach(function (r) {
     if (!inScope(cellStr_(r['معرّف البراد']))) return;
     const x = paymentToApi_(r);
@@ -4308,13 +4400,11 @@ function dashboardCompute_(period, coolerId, now, tz) {
     });
     if (x.status !== 'active') return;
     k.paidPiasters += x.amountPiasters;
-    if (x.targetType === 'packaging') paidSuppliers += x.amountPiasters;
-    else paidFarmers += x.amountPiasters;
   });
 
-  k.remainingPiasters = k.purchaseValuePiasters + k.packagingApprovedPiasters - k.paidPiasters;
-  k.remainingFarmersPiasters = k.purchaseValuePiasters - paidFarmers;
-  k.remainingSuppliersPiasters = k.packagingApprovedPiasters - paidSuppliers;
+  // المتبقي = متبقي العمليات المعروضة في الفترة (قيمتها ناقص كل دفعاتها الفعّالة أيًّا كان تاريخ الدفعة)،
+  // لا «قيمة الفترة − مدفوع الفترة»: دفعة اليوم لعملية سابقة كانت تجعله سالبًا (قرار في العقد §6).
+  k.remainingPiasters = k.remainingFarmersPiasters + k.remainingSuppliersPiasters;
   k.avgPricePerKgPiasters = avgPricePerKg_(k.purchaseValuePiasters, k.weightGrams);
 
   // البراد الحالي والبرادات المفتوحة
@@ -4427,6 +4517,7 @@ function farmersAppend_(fields) {
     'الحالة': 'نشط',
     'تاريخ الإضافة': rqNow_(),
     'أضافه': userLabel_(rq_().user),
+    'مفتاح عدم التكرار': fields.key || '',
   };
   const rec = stAppend_(t, [row])[0];
   auditAdd_('إنشاء', 'مزارع', row['المعرّف'], 'إضافة المزارع «' + fields.name + '» برقم ' + row['رقم المزارع'], null, row, '');
@@ -4455,9 +4546,14 @@ function farmersListAction_(p) {
   return { farmers: list };
 }
 
-/** farmers.create {name, phone?, village?, notes?, allowDuplicate?} */
-function farmersCreateAction_(p) {
+/**
+ * farmers.create {name, phone?, village?, notes?, allowDuplicate?}
+ * idempotent على requestId (العقد §7): إعادة الطلب نفسه تعيد المزارع نفسه مع replayed: true.
+ */
+function farmersCreateAction_(p, user, req) {
   stRequire_(['farmers', 'audit']);
+  const replay = stFindByKey_(stTable_('farmers'), req && req.requestId);
+  if (replay) return { farmer: farmerToApi_(replay), replayed: true };
   const name = inStr_(p.name, 'name', 'الاسم', { required: true, max: 80, hint: 'اكتب اسم المزارع ثم أعد المحاولة.' });
   const phone = farmersPhoneInput_(p.phone, 'phone');
   const village = inStr_(p.village, 'village', 'القرية / المنطقة', { max: 80 });
@@ -4465,7 +4561,8 @@ function farmersCreateAction_(p) {
   const allowDuplicate = inBool_(p.allowDuplicate, 'allowDuplicate', 'السماح بالاسم المكرر', false);
   const dup = farmersFindDuplicate_(name, null, false);
   if (dup && !allowDuplicate) farmersDuplicateError_('name', dup);
-  const rec = farmersAppend_({ name: name, phone: phone, village: village, notes: notes });
+  const rec = farmersAppend_({ name: name, phone: phone, village: village, notes: notes,
+    key: req && req.requestId ? req.requestId : '' });
   return { farmer: farmerToApi_(rec) };
 }
 
@@ -4896,7 +4993,7 @@ function mainErrorEnvelope_(err) {
     const rq = rq_();
     cfgRecordError_((rq.action ? '[' + rq.action + '] ' : '') + msg + (stack ? ' :: ' + stack : ''));
     try {
-      if (typeof console !== 'undefined' && console.error) console.error('INTERNAL', rq.action, msg, stack);
+      if (typeof console !== 'undefined' && console.error) console.error('INTERNAL', rq.action, cfgRedact_(msg), cfgRedact_(stack));
     } catch (e) {
       // نتجاهل.
     }
@@ -6499,7 +6596,7 @@ function settingsUpdateAction_(p) {
  * - sheet.status: قراءة فقط.
  * - sheet.repair: يُنشئ الصفحات والأعمدة الناقصة ويعيد التنسيق باستخدام buildDataSheet_ وbuildSummary_
  *   من sheets/setup.gs، ولا يحذف أي بيانات أو صفحات.
- * - sheet.connect: يتحقق أن openById يعمل قبل حفظ SPREADSHEET_ID. لا ينقل البيانات القديمة.
+ * - sheet.connect: للمدير الأساسي فقط. يتحقق أن openById يعمل قبل حفظ SPREADSHEET_ID. لا ينقل البيانات القديمة.
  */
 
 const RMN_CONNECT_WARNING =
@@ -6638,8 +6735,18 @@ function sheetRepairAction_() {
   return sheetStatus_();
 }
 
-/** sheet.connect {spreadsheet} → SheetStatus + warning. */
-function sheetConnectAction_(p) {
+/**
+ * sheet.connect {spreadsheet} → SheetStatus + warning.
+ * للمدير الأساسي فقط (قرار في العقد §6): ربط ملف آخر ينقل البيانات إلى ملف قد يملكه شخص آخر، فيخرجها
+ * من سيطرة صاحب الحساب (العقد §1: الموظفون لا يصلون إلى الملف مباشرة). يُفحص قبل أي شيء آخر حتى لا
+ * يكشف الرد حساب الربط لغير المدير الأساسي.
+ */
+function sheetConnectAction_(p, user) {
+  if (!user || user.isBootstrap !== true) {
+    throw apiError_('FORBIDDEN',
+      'ربط ملف بيانات آخر متاح للمدير الأساسي (صاحب الحساب) فقط، لأنه ينقل كل العمليات الجديدة إلى ذلك الملف. ' +
+      'اطلب من المدير الأساسي ربط الملف إن لزم.', null, { permission: 'manageSettings', reason: 'bootstrap_only' });
+  }
   const raw = inStr_(p.spreadsheet, 'spreadsheet', 'رابط ملف Google Sheets أو معرّفه', {
     required: true, max: 500, hint: 'انسخ رابط الملف من شريط العنوان في المتصفح والصقه هنا.',
   });
@@ -6897,18 +7004,32 @@ function stMakeRec_(t, rowNo, vals) {
   return rec;
 }
 
+/**
+ * أعمدة أُضيفت إلى المخطط بعد الإصدار الأول، والخادم يعمل بدونها (مفتاح عدم التكرار للبرادات والمزارعين:
+ * بدونه تبقى الإعادة محمية بذاكرة الطلبات فقط). لا تُفشل stRequire_، لكن sheet.status يذكرها ناقصة
+ * فيطلب «إصلاح الملف» إضافتها.
+ */
+const RMN_OPTIONAL_COLUMNS = Object.freeze({
+  coolers: Object.freeze(['مفتاح عدم التكرار']),
+  farmers: Object.freeze(['مفتاح عدم التكرار']),
+});
+
 /** يتأكد من وجود الصفحات والأعمدة المطلوبة، وإلا SHEET_SCHEMA مع details.missing = [{sheet, columns}]. */
 function stRequire_(keys) {
   const missing = [];
+  const wholeSheet = [];
   keys.forEach(function (k) {
     const t = stTable_(k);
-    if (t.missing.length) missing.push({ sheet: t.title, columns: t.missing.slice() });
+    const optional = t.exists ? (RMN_OPTIONAL_COLUMNS[k] || []) : [];
+    const cols = t.missing.filter(function (n) { return optional.indexOf(n) < 0; });
+    if (cols.length) {
+      missing.push({ sheet: t.title, columns: cols });
+      wholeSheet.push(!t.exists);
+    }
   });
   if (missing.length) {
-    const parts = missing.map(function (m) {
-      const def = SCHEMA.sheets.filter(function (d) { return d.title === m.sheet; })[0];
-      const whole = def && m.columns.length === def.columns.length;
-      return whole ? 'صفحة «' + m.sheet + '»' : 'أعمدة في صفحة «' + m.sheet + '»: ' + m.columns.join('، ');
+    const parts = missing.map(function (m, i) {
+      return wholeSheet[i] ? 'صفحة «' + m.sheet + '»' : 'أعمدة في صفحة «' + m.sheet + '»: ' + m.columns.join('، ');
     });
     throw apiError_('SHEET_SCHEMA',
       'ملف Google Sheets ينقصه: ' + parts.join('؛ ') + '. افتح «إعدادات الملف» واضغط «إصلاح الملف»، أو اطلب ذلك من المدير.',
@@ -7056,6 +7177,9 @@ function stUpdate_(t, rec, changes, opts) {
   const idx = names.map(function (n) { return t.col[n]; }).sort(function (a, b) { return a - b; });
   const byIdx = {};
   names.forEach(function (n) { byIdx[t.col[n]] = stCellValue_(c[n]); });
+  // يُسجَّل في دفتر التعويض قبل أول كتابة: إن فشلت مجموعة أعمدة لاحقة بعد نجاح سابقتها، يعيد التعويض
+  // كل الخلايا إلى prev (إعادة كتابة قيمة لم تتغير لا تضر).
+  if (opts.track !== false) rq_().journal.push({ op: 'update', t: t, rec: rec, prev: prev });
   let i = 0;
   while (i < idx.length) {
     let j = i;
@@ -7070,7 +7194,6 @@ function stUpdate_(t, rec, changes, opts) {
     rec.$vals[t.col[n]] = stCellValue_(c[n]);
     rec[n] = stCellValue_(c[n]);
   });
-  if (opts.track !== false) rq_().journal.push({ op: 'update', t: t, rec: rec, prev: prev });
   stMarkWrite_();
   return rec;
 }
@@ -7329,12 +7452,20 @@ function usersIsBootstrapEmail_(email) {
   return !!boot && !!email && email.toLowerCase() === boot;
 }
 
+/**
+ * حالة المستخدم من الصف. تفشل مغلقة: «نشط» وحدها تعني نشطًا، والفارغ أو أي قيمة غير معروفة (مثل «موقوف»)
+ * تُعامل «معطّل» حتى لا يبقى موظف داخلًا لأن المالك مسح الخانة أو كتب قيمة أخرى ليوقفه.
+ */
+function usersStatusOf_(rec) {
+  return enumToApi_('userStatus', rec['الحالة'], 'disabled');
+}
+
 /** صف المستخدم → كائن المستخدم. المدير الأساسي دائمًا مدير نشط (break-glass). */
 function usersToApi_(rec) {
   const email = usersEmailOf_(rec);
   const isBootstrap = usersIsBootstrapEmail_(email);
   let role = enumToApi_('role', rec['الدور'], 'viewer');
-  let status = enumToApi_('userStatus', rec['الحالة'], 'active');
+  let status = usersStatusOf_(rec);
   if (isBootstrap) {
     role = 'admin';
     status = 'active';
@@ -7416,8 +7547,7 @@ function usersProvisionBootstrap_(email, name) {
 
 /** هل يحتاج صف المدير الأساسي إصلاحًا (معطّل أو ليس مديرًا)؟ */
 function usersBootstrapNeedsRepair_(rec) {
-  return enumToApi_('role', rec['الدور'], 'viewer') !== 'admin' ||
-    enumToApi_('userStatus', rec['الحالة'], 'active') !== 'active';
+  return enumToApi_('role', rec['الدور'], 'viewer') !== 'admin' || usersStatusOf_(rec) !== 'active';
 }
 
 function usersRepairBootstrap_(rec) {
@@ -7437,7 +7567,7 @@ function usersActiveAdminsAfter_(changedRec, newRole, newStatus) {
   t.rows.forEach(function (r) {
     const boot = usersIsBootstrapEmail_(usersEmailOf_(r));
     let role = enumToApi_('role', r['الدور'], 'viewer');
-    let status = enumToApi_('userStatus', r['الحالة'], 'active');
+    let status = usersStatusOf_(r);
     if (r === changedRec) {
       role = newRole;
       status = newStatus;
@@ -7501,7 +7631,7 @@ function usersUpdateAction_(p) {
 
   const c = {};
   let newRole = enumToApi_('role', rec['الدور'], 'viewer');
-  let newStatus = enumToApi_('userStatus', rec['الحالة'], 'active');
+  let newStatus = usersStatusOf_(rec);
   if (p.name !== undefined) c['الاسم'] = inStr_(p.name, 'name', 'الاسم', { required: true, max: 80 });
   if (p.role !== undefined) {
     newRole = inEnum_(p.role, 'role', 'الدور', RMN_ROLE_CHOICES, { required: true });

@@ -268,6 +268,7 @@ function installFakeAppsScript(world, host, setupFormatting) {
     if (world.phase !== 'request') return;
     for (const f of world.faults) {
       if (f.remaining > 0 && f.sheet === sh.name && (!f.ops || f.ops.indexOf(op) >= 0)) {
+        if (f.skip > 0) { f.skip -= 1; continue; }
         f.remaining -= 1;
         f.fired += 1;
         throw gasError(f.message);
@@ -767,6 +768,14 @@ function installFakeAppsScript(world, host, setupFormatting) {
       let token;
       try { token = decodeURIComponent(url.slice(TOKENINFO.length)); } catch (e) { token = url.slice(TOKENINFO.length); }
       world.log.fetches.push({ seq: nextSeq(), url, muteHttpExceptions: !!(params && params.muteHttpExceptions) });
+      for (const f of world.fetchFaults) {
+        if (f.remaining > 0) {
+          f.remaining -= 1;
+          f.fired += 1;
+          // Like Apps Script: network-level errors are thrown even with muteHttpExceptions and name the URL.
+          throw gasError(f.message + ': ' + url);
+        }
+      }
       const info = Object.prototype.hasOwnProperty.call(world.tokens, token) ? world.tokens[token] : null;
       const code = info ? 200 : 400;
       const body = info ? JSON.stringify(info) : JSON.stringify({ error: 'invalid_token' });
@@ -925,6 +934,7 @@ function newWorld() {
     ownerEmail: OWNER_EMAIL,
     scriptTimeZone: SCRIPT_TIME_ZONE,
     faults: [],
+    fetchFaults: [],
     log: { writes: [], reads: [], flushes: [], lock: [], fetches: [], toasts: [], deletedSheets: [],
       anomalies: [], formatting: 0 },
   };
@@ -1120,9 +1130,6 @@ function createEnv(options) {
     registerGoogleUser(email, tokenOpts) {
       const o = Object.assign({}, tokenOpts || {});
       const nowS = Math.floor(env.clock.now() / 1000);
-      const header = Buffer.from(JSON.stringify({ alg: 'RS256', kid: 'fake', typ: 'JWT' })).toString('base64url');
-      const body = Buffer.from(JSON.stringify({ email, n: crypto.randomUUID() })).toString('base64url');
-      const token = `${header}.${body}.${crypto.randomBytes(32).toString('base64url')}`;
       const aud = o.aud === undefined ? CLIENT_IDS.web : o.aud;
       const verified = o.verified === undefined ? true : o.verified;
       const info = {
@@ -1142,6 +1149,16 @@ function createEnv(options) {
         typ: 'JWT',
       };
       if (o.name !== null) info.name = o.name === undefined ? `مستخدم ${email.split('@')[0]}` : o.name;
+      // A real Google ID token is a JWT whose payload carries the same claims tokeninfo returns
+      // (exp/iat as numbers there). `jwtClaims` overrides payload claims to test local pre-checks.
+      const header = Buffer.from(JSON.stringify({ alg: 'RS256', kid: 'fake', typ: 'JWT' })).toString('base64url');
+      const claims = { iss: info.iss, azp: info.azp, aud: info.aud, sub: info.sub, email,
+        email_verified: info.email_verified === true || info.email_verified === 'true', iat: Number(info.iat),
+        exp: Number(info.exp), jti: crypto.randomUUID() };
+      if (info.name !== undefined) claims.name = info.name;
+      Object.assign(claims, o.jwtClaims || {});
+      const body = Buffer.from(JSON.stringify(claims)).toString('base64url');
+      const token = `${header}.${body}.${crypto.randomBytes(32).toString('base64url')}`;
       world.tokens[token] = info;
       return token;
     },
@@ -1289,11 +1306,24 @@ function createEnv(options) {
       advance(ms) { world.clock.offsetMs += ms; },
       offset() { return world.clock.offsetMs; },
     },
-    /** Makes the next `times` writes (setValues/setValue/appendRow/...) to a sheet throw during requests. */
+    /**
+     * Makes the next `times` writes (setValues/setValue/appendRow/...) to a sheet throw during requests.
+     * `skip`: let that many matching writes succeed first (e.g. skip: 1 fails the second write).
+     */
     failWrites(keyOrTitle, failOpts) {
-      const fo = Object.assign({ times: 1, ops: null, message: 'Service Spreadsheets failed while accessing document with id fake.' }, failOpts || {});
-      const f = { sheet: sheetTitle(keyOrTitle), remaining: fo.times, ops: fo.ops, message: fo.message, fired: 0 };
+      const fo = Object.assign({ times: 1, skip: 0, ops: null, message: 'Service Spreadsheets failed while accessing document with id fake.' }, failOpts || {});
+      const f = { sheet: sheetTitle(keyOrTitle), remaining: fo.times, skip: fo.skip, ops: fo.ops, message: fo.message, fired: 0 };
       world.faults.push(f);
+      return f;
+    },
+    /**
+     * Makes the next `times` UrlFetchApp.fetch calls fail at the network level. Like Apps Script, the
+     * exception message names the requested URL (e.g. "Address unavailable: https://...").
+     */
+    failFetches(failOpts) {
+      const fo = Object.assign({ times: 1, message: 'Address unavailable' }, failOpts || {});
+      const f = { remaining: fo.times, message: fo.message, fired: 0 };
+      world.fetchFaults.push(f);
       return f;
     },
     formatDate(date, tz, pattern) {

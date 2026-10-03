@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/app_scope.dart';
 import '../../core/api/api_exception.dart';
+import '../../core/api/request_id.dart';
 import '../../core/models/sheet_status.dart';
 import '../../theme/app_theme.dart';
 import '../../ui/ui.dart';
@@ -43,6 +44,9 @@ class _ChangeSheetDialogState extends State<ChangeSheetDialog> {
   String? _fieldError;
   String? _error;
 
+  /// requestId للربط: يُعاد مع الرابط نفسه عند إعادة المحاولة بعد فشل.
+  final _connectRequest = SubmissionRequestId();
+
   @override
   void dispose() {
     _controller.dispose();
@@ -76,8 +80,10 @@ class _ChangeSheetDialogState extends State<ChangeSheetDialog> {
       _fieldError = null;
       _error = null;
     });
+    final requestId = _connectRequest.idFor(raw);
     try {
-      final status = await AppScope.of(context).api.sheetConnect(raw);
+      final status = await AppScope.of(context).api.sheetConnect(raw, requestId: requestId);
+      _connectRequest.reset();
       if (!mounted) return;
       Navigator.of(context).pop(status);
     } catch (e) {

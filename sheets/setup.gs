@@ -20,7 +20,7 @@ const SCHEMA = {
     {
       "key": "coolers",
       "title": "البرادات",
-      "description": "بيانات كل براد وحالته. أعمدة «عند التقفيل» تُحفظ مرة واحدة لحظة التقفيل ولا تتغير بعدها.",
+      "description": "بيانات كل براد وحالته. أعمدة «عند التقفيل» تُحفظ لحظة التقفيل ولا تغيّرها إعادة الفتح؛ إن أُعيد تقفيل البراد تُستبدل بأرقام التقفيل الأخير، والأرقام السابقة محفوظة في «سجل التعديلات».",
       "tabColor": "#A00B1E",
       "freezeColumns": 2,
       "columns": [
@@ -256,6 +256,16 @@ const SCHEMA = {
           "options": null,
           "hidden": true,
           "emphasis": null
+        },
+        {
+          "name": "مفتاح عدم التكرار",
+          "kind": "id",
+          "width": 15,
+          "numberFormat": "@",
+          "align": "center",
+          "options": null,
+          "hidden": true,
+          "emphasis": null
         }
       ]
     },
@@ -364,6 +374,16 @@ const SCHEMA = {
           "kind": "int",
           "width": 12,
           "numberFormat": "#,##0",
+          "align": "center",
+          "options": null,
+          "hidden": true,
+          "emphasis": null
+        },
+        {
+          "name": "مفتاح عدم التكرار",
+          "kind": "id",
+          "width": 15,
+          "numberFormat": "@",
           "align": "center",
           "options": null,
           "hidden": true,

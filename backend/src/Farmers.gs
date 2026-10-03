@@ -64,6 +64,7 @@ function farmersAppend_(fields) {
     'الحالة': 'نشط',
     'تاريخ الإضافة': rqNow_(),
     'أضافه': userLabel_(rq_().user),
+    'مفتاح عدم التكرار': fields.key || '',
   };
   const rec = stAppend_(t, [row])[0];
   auditAdd_('إنشاء', 'مزارع', row['المعرّف'], 'إضافة المزارع «' + fields.name + '» برقم ' + row['رقم المزارع'], null, row, '');
@@ -92,9 +93,14 @@ function farmersListAction_(p) {
   return { farmers: list };
 }
 
-/** farmers.create {name, phone?, village?, notes?, allowDuplicate?} */
-function farmersCreateAction_(p) {
+/**
+ * farmers.create {name, phone?, village?, notes?, allowDuplicate?}
+ * idempotent على requestId (العقد §7): إعادة الطلب نفسه تعيد المزارع نفسه مع replayed: true.
+ */
+function farmersCreateAction_(p, user, req) {
   stRequire_(['farmers', 'audit']);
+  const replay = stFindByKey_(stTable_('farmers'), req && req.requestId);
+  if (replay) return { farmer: farmerToApi_(replay), replayed: true };
   const name = inStr_(p.name, 'name', 'الاسم', { required: true, max: 80, hint: 'اكتب اسم المزارع ثم أعد المحاولة.' });
   const phone = farmersPhoneInput_(p.phone, 'phone');
   const village = inStr_(p.village, 'village', 'القرية / المنطقة', { max: 80 });
@@ -102,7 +108,8 @@ function farmersCreateAction_(p) {
   const allowDuplicate = inBool_(p.allowDuplicate, 'allowDuplicate', 'السماح بالاسم المكرر', false);
   const dup = farmersFindDuplicate_(name, null, false);
   if (dup && !allowDuplicate) farmersDuplicateError_('name', dup);
-  const rec = farmersAppend_({ name: name, phone: phone, village: village, notes: notes });
+  const rec = farmersAppend_({ name: name, phone: phone, village: village, notes: notes,
+    key: req && req.requestId ? req.requestId : '' });
   return { farmer: farmerToApi_(rec) };
 }
 

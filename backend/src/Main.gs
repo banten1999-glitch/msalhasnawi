@@ -306,7 +306,7 @@ function mainErrorEnvelope_(err) {
     const rq = rq_();
     cfgRecordError_((rq.action ? '[' + rq.action + '] ' : '') + msg + (stack ? ' :: ' + stack : ''));
     try {
-      if (typeof console !== 'undefined' && console.error) console.error('INTERNAL', rq.action, msg, stack);
+      if (typeof console !== 'undefined' && console.error) console.error('INTERNAL', rq.action, cfgRedact_(msg), cfgRedact_(stack));
     } catch (e) {
       // نتجاهل.
     }

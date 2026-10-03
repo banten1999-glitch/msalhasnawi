@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/app_scope.dart';
 import '../../core/api/api_exception.dart';
+import '../../core/api/request_id.dart';
 import '../../core/models/user.dart';
 import '../../theme/app_theme.dart';
 import '../../ui/ui.dart';
@@ -32,6 +33,10 @@ class _UsersTabState extends State<UsersTab> {
   String? _nameError;
   String? _roleError;
   String? _addError;
+
+  /// requestId لإضافة واحدة: يُعاد إرساله إن ضغط المستخدم «إضافة» مرة أخرى بالبيانات نفسها بعد فشل
+  /// (مثل انتهاء المهلة بعد أن حفظ الخادم)، فيعيد الخادم المستخدم نفسه بدل «البريد مسجّل بالفعل».
+  final _addRequest = SubmissionRequestId();
 
   ({BannerKind kind, String message})? _notice;
 
@@ -95,8 +100,15 @@ class _UsersTabState extends State<UsersTab> {
     if (emailError != null || nameError != null) return;
 
     setState(() => _adding = true);
+    final requestId = _addRequest.idFor({'email': email, 'name': name, 'role': _role.wire});
     try {
-      final user = await AppScope.of(context).api.addUser(email: email, name: name, role: _role);
+      final user = await AppScope.of(context).api.addUser(
+        email: email,
+        name: name,
+        role: _role,
+        requestId: requestId,
+      );
+      _addRequest.reset();
       if (!mounted) return;
       setState(() {
         _adding = false;

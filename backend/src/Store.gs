@@ -195,18 +195,32 @@ function stMakeRec_(t, rowNo, vals) {
   return rec;
 }
 
+/**
+ * أعمدة أُضيفت إلى المخطط بعد الإصدار الأول، والخادم يعمل بدونها (مفتاح عدم التكرار للبرادات والمزارعين:
+ * بدونه تبقى الإعادة محمية بذاكرة الطلبات فقط). لا تُفشل stRequire_، لكن sheet.status يذكرها ناقصة
+ * فيطلب «إصلاح الملف» إضافتها.
+ */
+const RMN_OPTIONAL_COLUMNS = Object.freeze({
+  coolers: Object.freeze(['مفتاح عدم التكرار']),
+  farmers: Object.freeze(['مفتاح عدم التكرار']),
+});
+
 /** يتأكد من وجود الصفحات والأعمدة المطلوبة، وإلا SHEET_SCHEMA مع details.missing = [{sheet, columns}]. */
 function stRequire_(keys) {
   const missing = [];
+  const wholeSheet = [];
   keys.forEach(function (k) {
     const t = stTable_(k);
-    if (t.missing.length) missing.push({ sheet: t.title, columns: t.missing.slice() });
+    const optional = t.exists ? (RMN_OPTIONAL_COLUMNS[k] || []) : [];
+    const cols = t.missing.filter(function (n) { return optional.indexOf(n) < 0; });
+    if (cols.length) {
+      missing.push({ sheet: t.title, columns: cols });
+      wholeSheet.push(!t.exists);
+    }
   });
   if (missing.length) {
-    const parts = missing.map(function (m) {
-      const def = SCHEMA.sheets.filter(function (d) { return d.title === m.sheet; })[0];
-      const whole = def && m.columns.length === def.columns.length;
-      return whole ? 'صفحة «' + m.sheet + '»' : 'أعمدة في صفحة «' + m.sheet + '»: ' + m.columns.join('، ');
+    const parts = missing.map(function (m, i) {
+      return wholeSheet[i] ? 'صفحة «' + m.sheet + '»' : 'أعمدة في صفحة «' + m.sheet + '»: ' + m.columns.join('، ');
     });
     throw apiError_('SHEET_SCHEMA',
       'ملف Google Sheets ينقصه: ' + parts.join('؛ ') + '. افتح «إعدادات الملف» واضغط «إصلاح الملف»، أو اطلب ذلك من المدير.',
@@ -354,6 +368,9 @@ function stUpdate_(t, rec, changes, opts) {
   const idx = names.map(function (n) { return t.col[n]; }).sort(function (a, b) { return a - b; });
   const byIdx = {};
   names.forEach(function (n) { byIdx[t.col[n]] = stCellValue_(c[n]); });
+  // يُسجَّل في دفتر التعويض قبل أول كتابة: إن فشلت مجموعة أعمدة لاحقة بعد نجاح سابقتها، يعيد التعويض
+  // كل الخلايا إلى prev (إعادة كتابة قيمة لم تتغير لا تضر).
+  if (opts.track !== false) rq_().journal.push({ op: 'update', t: t, rec: rec, prev: prev });
   let i = 0;
   while (i < idx.length) {
     let j = i;
@@ -368,7 +385,6 @@ function stUpdate_(t, rec, changes, opts) {
     rec.$vals[t.col[n]] = stCellValue_(c[n]);
     rec[n] = stCellValue_(c[n]);
   });
-  if (opts.track !== false) rq_().journal.push({ op: 'update', t: t, rec: rec, prev: prev });
   stMarkWrite_();
   return rec;
 }

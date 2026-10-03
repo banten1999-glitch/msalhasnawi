@@ -36,13 +36,16 @@ abstract class BackendApi {
   Future<BusinessSettings> settings();
 
   // ---------------------------------------------------------------- الإدارة
+  //
+  // دوال الحفظ تقبل [requestId] اختياريًا: النموذج يمرر المعرّف نفسه عند إعادة إرسال الحمولة نفسها بعد
+  // فشل (SubmissionRequestId)، فلا تُسجَّل العملية مرتين. null ⇒ معرّف جديد.
 
   Future<SheetStatus> sheetStatus();
 
-  Future<SheetStatus> sheetRepair();
+  Future<SheetStatus> sheetRepair({String? requestId});
 
-  /// يربط ملفًا آخر (رابط أو معرّف). يعيد الحالة مع [SheetStatus.warning].
-  Future<SheetStatus> sheetConnect(String spreadsheet);
+  /// يربط ملفًا آخر (رابط أو معرّف). يعيد الحالة مع [SheetStatus.warning]. للمدير الأساسي فقط.
+  Future<SheetStatus> sheetConnect(String spreadsheet, {String? requestId});
 
   Future<List<AppUser>> listUsers();
 
@@ -51,6 +54,7 @@ abstract class BackendApi {
     required String name,
     required UserRole role,
     UserPermissions? permissions,
+    String? requestId,
   });
 
   Future<AppUser> updateUser({
@@ -60,5 +64,6 @@ abstract class BackendApi {
     UserRole? role,
     bool? active,
     UserPermissions? permissions,
+    String? requestId,
   });
 }

@@ -14,16 +14,60 @@ function authInvalidToken_(message, reason) {
 }
 
 /**
+ * فحص محلي رخيص قبل استدعاء tokeninfo: auth.login متاح دون جلسة، وكل استدعاء لـ UrlFetchApp يُحسب من
+ * الحصة اليومية، فلا نصرفه على رمز لا يمكن أن يقبله tokeninfo أصلًا. يُشترط شكل JWT (ثلاثة أجزاء
+ * base64url) وأن تكون حمولته (دون التحقق من التوقيع) لعميل مسموح، ومن Google، وغير منتهية.
+ * tokeninfo يبقى الفحص الحاسم للتوقيع وكل الشروط.
+ */
+function authPrecheckIdToken_(idToken) {
+  const malformed = function () {
+    return authInvalidToken_('رمز الدخول من Google غير صالح. سجّل الدخول بحساب Google مرة أخرى.', 'malformed');
+  };
+  const parts = String(idToken).trim().split('.');
+  const seg = /^[A-Za-z0-9_-]+={0,2}$/;
+  if (parts.length !== 3 || !seg.test(parts[0]) || !seg.test(parts[1]) || !seg.test(parts[2])) throw malformed();
+  let claims = null;
+  try {
+    let b64 = parts[1].replace(/=+$/, '');
+    while (b64.length % 4) b64 += '=';
+    claims = JSON.parse(Utilities.newBlob(Utilities.base64DecodeWebSafe(b64)).getDataAsString());
+  } catch (e) {
+    claims = null;
+  }
+  if (!isPlainObject_(claims)) throw malformed();
+  const allowed = cfgAllowedClientIds_();
+  const auds = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
+  if (!auds.some(function (a) { return allowed.indexOf(String(a)) >= 0; })) throw authAudienceError_();
+  if (RMN_CFG.tokenIssuers.indexOf(String(claims.iss || '')) < 0) throw authIssuerError_();
+  const exp = Number(claims.exp);
+  if (!isFinite(exp) || exp * 1000 <= rq_().now.getTime()) throw authTokenExpiredError_();
+}
+
+function authAudienceError_() {
+  return authInvalidToken_('رمز الدخول صادر لتطبيق غير معروف. استخدم تطبيق حاسبة الرمان الرسمي ثم سجّل الدخول مرة أخرى.', 'audience');
+}
+
+function authIssuerError_() {
+  return authInvalidToken_('رمز الدخول ليس صادرًا من Google. سجّل الدخول بحساب Google مرة أخرى.', 'issuer');
+}
+
+function authTokenExpiredError_() {
+  return authInvalidToken_('انتهت صلاحية رمز الدخول من Google. سجّل الدخول مرة أخرى.', 'expired');
+}
+
+/**
  * يتحقق من ID token عبر tokeninfo ويعيد {email, name, sub}.
  * تُفحص: الرد 200، aud ضمن المعرّفات المسموحة، iss، email_verified، exp.
  */
 function authVerifyGoogleToken_(idToken) {
+  authPrecheckIdToken_(idToken);
   let resp;
   try {
     resp = UrlFetchApp.fetch(RMN_CFG.tokenInfoUrl + encodeURIComponent(idToken), { muteHttpExceptions: true });
   } catch (e) {
-    // العقد: أي رد غير 200 ⇒ AUTH_INVALID_TOKEN. نسجل السبب للتشخيص.
-    cfgRecordError_('tokeninfo fetch failed: ' + (e && e.message ? e.message : e));
+    // العقد: أي رد غير 200 ⇒ AUTH_INVALID_TOKEN. نسجل السبب للتشخيص، لكن رسالة UrlFetchApp تتضمن الرابط
+    // وفيه رمز الدخول نفسه، فيُحذف قبل الحفظ (LAST_ERROR يظهر لكل مدير).
+    cfgRecordError_('tokeninfo fetch failed: ' + cfgRedact_(e && e.message ? e.message : e));
     throw authInvalidToken_('تعذّر الاتصال بخدمة Google للتحقق من حسابك. تأكد من الاتصال ثم سجّل الدخول مرة أخرى بعد قليل.',
       'unavailable');
   }
@@ -44,19 +88,13 @@ function authVerifyGoogleToken_(idToken) {
   if (!info || typeof info !== 'object') {
     throw authInvalidToken_('تعذّر قراءة رد Google على رمز الدخول. سجّل الدخول مرة أخرى.', 'unreadable');
   }
-  if (cfgAllowedClientIds_().indexOf(String(info.aud || '')) < 0) {
-    throw authInvalidToken_('رمز الدخول صادر لتطبيق غير معروف. استخدم تطبيق حاسبة الرمان الرسمي ثم سجّل الدخول مرة أخرى.', 'audience');
-  }
-  if (RMN_CFG.tokenIssuers.indexOf(String(info.iss || '')) < 0) {
-    throw authInvalidToken_('رمز الدخول ليس صادرًا من Google. سجّل الدخول بحساب Google مرة أخرى.', 'issuer');
-  }
+  if (cfgAllowedClientIds_().indexOf(String(info.aud || '')) < 0) throw authAudienceError_();
+  if (RMN_CFG.tokenIssuers.indexOf(String(info.iss || '')) < 0) throw authIssuerError_();
   if (!(info.email_verified === true || info.email_verified === 'true')) {
     throw authInvalidToken_('بريد حساب Google غير مؤكَّد. أكّد البريد من إعدادات حساب Google ثم سجّل الدخول مرة أخرى.', 'email_unverified');
   }
   const exp = Number(info.exp);
-  if (!isFinite(exp) || exp * 1000 <= rq_().now.getTime()) {
-    throw authInvalidToken_('انتهت صلاحية رمز الدخول من Google. سجّل الدخول مرة أخرى.', 'expired');
-  }
+  if (!isFinite(exp) || exp * 1000 <= rq_().now.getTime()) throw authTokenExpiredError_();
   const email = String(info.email || '').trim().toLowerCase();
   if (!email) {
     throw authInvalidToken_('رمز الدخول لا يحتوي على بريد إلكتروني. سجّل الدخول بحساب Google يحتوي على بريد Gmail.', 'no_email');
@@ -133,7 +171,8 @@ function authStale_() {
 
 function authNotAllowed_(email, reason) {
   const msg = reason === 'disabled'
-    ? 'الحساب ' + email + ' معطّل. اطلب من المدير تفعيله ثم سجّل الدخول مرة أخرى.'
+    ? 'الحساب ' + email + ' معطّل: خانة «الحالة» في صفحة «المستخدمون» ليست «نشط». ' +
+      'اطلب من المدير تفعيله (اختيار «نشط») ثم سجّل الدخول مرة أخرى.'
     : 'الحساب ' + email + ' غير مسجّل في قائمة المستخدمين. اطلب من المدير إضافته ثم سجّل الدخول مرة أخرى.';
   return apiError_('NOT_ALLOWED', msg, null, { email: email, reason: reason });
 }

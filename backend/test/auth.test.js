@@ -16,6 +16,13 @@ function login(env, idToken) {
     client: { platform: 'android', version: '1.0.0' } });
 }
 
+/** A JWT that passes the local shape/aud/iss/exp checks but that tokeninfo does not know (HTTP 400). */
+function unknownToGoogle(env) {
+  const token = env.registerGoogleUser(ADMIN);
+  delete env.world.tokens[token];
+  return token;
+}
+
 function assertUserShape(u, label) {
   assert.match(String(u.id), /^US-\d{4,}$/, `${label}: id`);
   assert.equal(typeof u.email, 'string');
@@ -100,7 +107,8 @@ test('Google ID tokens are rejected with AUTH_INVALID_TOKEN: wrong aud, wrong is
     ['unverified email', env.registerGoogleUser(ADMIN, { verified: false })],
     ['unverified (boolean false)', env.registerGoogleUser(ADMIN, { emailVerifiedRaw: false })],
     ['expired token', env.registerGoogleUser(ADMIN, { exp: Math.floor(env.clock.now() / 1000) - 10 })],
-    ['unknown token (tokeninfo HTTP 400)', 'not-a-real-google-token'],
+    ['not a JWT at all (rejected before tokeninfo)', 'not-a-real-google-token'],
+    ['well-formed but unknown to Google (tokeninfo HTTP 400)', unknownToGoogle(env)],
   ];
   for (const [label, idToken] of cases) {
     fail(login(env, idToken), 'AUTH_INVALID_TOKEN', label);

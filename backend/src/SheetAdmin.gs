@@ -4,7 +4,7 @@
  * - sheet.status: قراءة فقط.
  * - sheet.repair: يُنشئ الصفحات والأعمدة الناقصة ويعيد التنسيق باستخدام buildDataSheet_ وbuildSummary_
  *   من sheets/setup.gs، ولا يحذف أي بيانات أو صفحات.
- * - sheet.connect: يتحقق أن openById يعمل قبل حفظ SPREADSHEET_ID. لا ينقل البيانات القديمة.
+ * - sheet.connect: للمدير الأساسي فقط. يتحقق أن openById يعمل قبل حفظ SPREADSHEET_ID. لا ينقل البيانات القديمة.
  */
 
 const RMN_CONNECT_WARNING =
@@ -143,8 +143,18 @@ function sheetRepairAction_() {
   return sheetStatus_();
 }
 
-/** sheet.connect {spreadsheet} → SheetStatus + warning. */
-function sheetConnectAction_(p) {
+/**
+ * sheet.connect {spreadsheet} → SheetStatus + warning.
+ * للمدير الأساسي فقط (قرار في العقد §6): ربط ملف آخر ينقل البيانات إلى ملف قد يملكه شخص آخر، فيخرجها
+ * من سيطرة صاحب الحساب (العقد §1: الموظفون لا يصلون إلى الملف مباشرة). يُفحص قبل أي شيء آخر حتى لا
+ * يكشف الرد حساب الربط لغير المدير الأساسي.
+ */
+function sheetConnectAction_(p, user) {
+  if (!user || user.isBootstrap !== true) {
+    throw apiError_('FORBIDDEN',
+      'ربط ملف بيانات آخر متاح للمدير الأساسي (صاحب الحساب) فقط، لأنه ينقل كل العمليات الجديدة إلى ذلك الملف. ' +
+      'اطلب من المدير الأساسي ربط الملف إن لزم.', null, { permission: 'manageSettings', reason: 'bootstrap_only' });
+  }
   const raw = inStr_(p.spreadsheet, 'spreadsheet', 'رابط ملف Google Sheets أو معرّفه', {
     required: true, max: 500, hint: 'انسخ رابط الملف من شريط العنوان في المتصفح والصقه هنا.',
   });

@@ -59,12 +59,20 @@ function usersIsBootstrapEmail_(email) {
   return !!boot && !!email && email.toLowerCase() === boot;
 }
 
+/**
+ * حالة المستخدم من الصف. تفشل مغلقة: «نشط» وحدها تعني نشطًا، والفارغ أو أي قيمة غير معروفة (مثل «موقوف»)
+ * تُعامل «معطّل» حتى لا يبقى موظف داخلًا لأن المالك مسح الخانة أو كتب قيمة أخرى ليوقفه.
+ */
+function usersStatusOf_(rec) {
+  return enumToApi_('userStatus', rec['الحالة'], 'disabled');
+}
+
 /** صف المستخدم → كائن المستخدم. المدير الأساسي دائمًا مدير نشط (break-glass). */
 function usersToApi_(rec) {
   const email = usersEmailOf_(rec);
   const isBootstrap = usersIsBootstrapEmail_(email);
   let role = enumToApi_('role', rec['الدور'], 'viewer');
-  let status = enumToApi_('userStatus', rec['الحالة'], 'active');
+  let status = usersStatusOf_(rec);
   if (isBootstrap) {
     role = 'admin';
     status = 'active';
@@ -146,8 +154,7 @@ function usersProvisionBootstrap_(email, name) {
 
 /** هل يحتاج صف المدير الأساسي إصلاحًا (معطّل أو ليس مديرًا)؟ */
 function usersBootstrapNeedsRepair_(rec) {
-  return enumToApi_('role', rec['الدور'], 'viewer') !== 'admin' ||
-    enumToApi_('userStatus', rec['الحالة'], 'active') !== 'active';
+  return enumToApi_('role', rec['الدور'], 'viewer') !== 'admin' || usersStatusOf_(rec) !== 'active';
 }
 
 function usersRepairBootstrap_(rec) {
@@ -167,7 +174,7 @@ function usersActiveAdminsAfter_(changedRec, newRole, newStatus) {
   t.rows.forEach(function (r) {
     const boot = usersIsBootstrapEmail_(usersEmailOf_(r));
     let role = enumToApi_('role', r['الدور'], 'viewer');
-    let status = enumToApi_('userStatus', r['الحالة'], 'active');
+    let status = usersStatusOf_(r);
     if (r === changedRec) {
       role = newRole;
       status = newStatus;
@@ -231,7 +238,7 @@ function usersUpdateAction_(p) {
 
   const c = {};
   let newRole = enumToApi_('role', rec['الدور'], 'viewer');
-  let newStatus = enumToApi_('userStatus', rec['الحالة'], 'active');
+  let newStatus = usersStatusOf_(rec);
   if (p.name !== undefined) c['الاسم'] = inStr_(p.name, 'name', 'الاسم', { required: true, max: 80 });
   if (p.role !== undefined) {
     newRole = inEnum_(p.role, 'role', 'الدور', RMN_ROLE_CHOICES, { required: true });

@@ -820,7 +820,8 @@ class DemoBackendApi extends BackendApi with BackendActions {
 
     final coolers = _coolers.where((c) => inScope(c.id)).toList();
     var purchases = 0, boxes = 0, weight = 0, value = 0, packagingApproved = 0;
-    var paidFarmers = 0, paidSuppliers = 0, records = 0;
+    // المتبقي = ما بقي على عمليات الفترة بعد كل دفعاتها (مثل الخادم، docs/API.md §6)، فلا يكون سالبًا.
+    var remainingFarmers = 0, remainingSuppliers = 0, records = 0;
     final farmers = <String>{};
     final recent = <({DateTime at, Map<String, dynamic> json})>[];
 
@@ -844,6 +845,7 @@ class DemoBackendApi extends BackendApi with BackendActions {
       boxes += x.boxes;
       weight += x.totalWeightGrams;
       value += x.valuePiasters;
+      remainingFarmers += x.valuePiasters - paid;
       farmers.add(x.farmerId);
     }
 
@@ -860,7 +862,10 @@ class DemoBackendApi extends BackendApi with BackendActions {
         'status': x.status,
         'statusLabel': _statusLabels[x.status],
       }));
-      if (x.status == 'approved') packagingApproved += x.completeTotal;
+      if (x.status == 'approved') {
+        packagingApproved += x.completeTotal;
+        remainingSuppliers += x.completeTotal - _paidFor(x.id);
+      }
     }
 
     var paid = 0;
@@ -880,11 +885,6 @@ class DemoBackendApi extends BackendApi with BackendActions {
       }));
       if (!x.active) continue;
       paid += x.amount;
-      if (x.targetType == 'packaging') {
-        paidSuppliers += x.amount;
-      } else {
-        paidFarmers += x.amount;
-      }
     }
 
     recent.sort((a, b) {
@@ -913,9 +913,9 @@ class DemoBackendApi extends BackendApi with BackendActions {
         'purchaseValuePiasters': value,
         'packagingApprovedPiasters': packagingApproved,
         'paidPiasters': paid,
-        'remainingPiasters': value + packagingApproved - paid,
-        'remainingFarmersPiasters': value - paidFarmers,
-        'remainingSuppliersPiasters': packagingApproved - paidSuppliers,
+        'remainingPiasters': remainingFarmers + remainingSuppliers,
+        'remainingFarmersPiasters': remainingFarmers,
+        'remainingSuppliersPiasters': remainingSuppliers,
         'avgPricePerKgPiasters': _avgPrice(value, weight),
       },
       'currentCooler': current == null ? null : _coolerJson(current),

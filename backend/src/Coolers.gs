@@ -1,6 +1,8 @@
 /**
  * Coolers.gs — صفحة «البرادات»: الفتح والتقفيل وإعادة الفتح، وملخص كل براد.
- * أعمدة «عند التقفيل» تُكتب لحظة التقفيل فقط، وإعادة الفتح تُبقيها كما هي.
+ * أعمدة «عند التقفيل» تُكتب لحظة التقفيل فقط، وإعادة الفتح تُبقيها كما هي. إعادة التقفيل بعد إعادة
+ * الفتح تستبدلها بأرقام التقفيل الأخير (العقد §6: كل تقفيل يكتب اللقطة)، واللقطة السابقة تُحفظ في
+ * «القيم السابقة» بسجل التعديلات.
  */
 
 const RMN_SNAPSHOT_COLUMNS = Object.freeze({
@@ -17,6 +19,15 @@ const RMN_SNAPSHOT_COLUMNS = Object.freeze({
 
 function coolerIsClosed_(rec) {
   return enumToApi_('coolerStatus', rec['الحالة'], 'open') === 'closed';
+}
+
+/**
+ * صف براد بقي من coolers.create فشل حفظه فعُوِّض (Store.gs): مقفّل دون وقت تقفيل، وفي ملاحظاته
+ * «تعذّر إكمال الحفظ». لم يُبلَّغ به أحد (الرد كان INTERNAL)، فلا يظهر في القوائم ولا يُعدّ في اللوحة.
+ */
+function coolerIsCompensated_(rec) {
+  return coolerIsClosed_(rec) && !inPresent_(rec['تاريخ ووقت التقفيل']) &&
+    cellStr_(rec['ملاحظات']).indexOf(RMN_CFG.compensationReason) >= 0;
 }
 
 function coolerClosedError_(rec, message) {
@@ -76,8 +87,9 @@ function coolerSummary_(rec) {
   };
 }
 
+/** البرادات الحقيقية (دون صفوف الحفظ الفاشل) من الأحدث إلى الأقدم. */
 function coolersSorted_() {
-  const rows = stTable_('coolers').rows.slice();
+  const rows = stTable_('coolers').rows.filter(function (r) { return !coolerIsCompensated_(r); });
   rows.sort(function (a, b) { return (cellInt_(b['رقم البراد']) || 0) - (cellInt_(a['رقم البراد']) || 0); });
   return rows;
 }
@@ -123,10 +135,16 @@ function coolersGetAction_(p) {
   };
 }
 
-/** coolers.create {name?, carNo?, driver?, notes?} — رقم البراد = الأكبر + 1، والحالة مفتوح. */
-function coolersCreateAction_(p) {
+/**
+ * coolers.create {name?, carNo?, driver?, notes?} — رقم البراد = الأكبر + 1، والحالة مفتوح.
+ * idempotent على requestId (العقد §7): يُحفظ في «مفتاح عدم التكرار»، فإعادة الطلب نفسه بعد انتهاء ذاكرة
+ * الطلبات تعيد البراد نفسه مع replayed: true بدل فتح براد ثانٍ.
+ */
+function coolersCreateAction_(p, user, req) {
   stRequire_(stDataKeys_().concat(['audit']));
   const t = stTable_('coolers');
+  const replay = stFindByKey_(t, req && req.requestId);
+  if (replay) return { cooler: coolerSummary_(replay), replayed: true };
   const name = inStr_(p.name, 'name', 'اسم البراد / الوصف', { max: 80 });
   const carNo = inStr_(p.carNo, 'carNo', 'رقم السيارة', { max: 30 });
   const driver = inStr_(p.driver, 'driver', 'اسم السائق', { max: 80 });
@@ -141,6 +159,7 @@ function coolersCreateAction_(p) {
     'الحالة': 'مفتوح',
     'فتحه': userLabel_(rq_().user),
     'ملاحظات': notes,
+    'مفتاح عدم التكرار': req && req.requestId ? req.requestId : '',
   };
   const rec = stAppend_(t, [row])[0];
   auditAdd_('إنشاء', 'براد', row['المعرّف'], 'فتح البراد رقم ' + row['رقم البراد'], null, row, '');

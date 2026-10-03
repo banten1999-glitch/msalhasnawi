@@ -26,15 +26,41 @@ String normalizeDigits(String input) {
   return out.toString().trim();
 }
 
+/// مثل [normalizeDigits] لكنه يُبقي فواصل الآلاف (، و٬ والمسافات الداخلية تصبح «,») حتى يُتحقق من موضعها.
+String _normalizeKeepingGroups(String input) {
+  final out = StringBuffer();
+  for (final rune in input.trim().runes) {
+    final ch = String.fromCharCode(rune);
+    final a = _arabicDigits.indexOf(ch);
+    final p = _persianDigits.indexOf(ch);
+    if (a >= 0) {
+      out.write(a);
+    } else if (p >= 0) {
+      out.write(p);
+    } else if (ch == '٫') {
+      out.write('.');
+    } else if (ch == '٬' || ch == ',' || ch == ' ' || ch == '\u00A0' || ch == '\u202F') {
+      out.write(',');
+    } else {
+      out.write(ch);
+    }
+  }
+  return out.toString();
+}
+
 /// يحوّل نصًا عشريًا إلى عدد صحيح بعد ضربه في 10^[scale]، مع تقريب النصف للأعلى.
 /// يعيد null إذا كان النص فارغًا أو غير صالح أو سالبًا.
 ///
+/// فواصل الآلاف (, أو ٬ أو مسافة) مقبولة فقط في مواضعها الصحيحة قبل العلامة العشرية (كل 3 أرقام):
+/// «1,234.5» صحيح، أما «12,5» (فاصلة مكان العلامة العشرية) و«1,2,3» فيعيدان null بدل قراءتهما 125 و123،
+/// فيعرض النموذج خطأً تحت الحقل.
+///
 /// parseToMinor('15', 2) == 1500 · parseToMinor('١٠٫٦', 3) == 10600 · parseToMinor('0.125', 2) == 13
 int? parseToMinor(String input, int scale) {
-  final t = normalizeDigits(input);
-  final m = RegExp(r'^(\d+)(?:\.(\d*))?$|^\.(\d+)$').firstMatch(t);
+  final t = _normalizeKeepingGroups(input);
+  final m = RegExp(r'^(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d*))?$|^\.(\d+)$').firstMatch(t);
   if (m == null) return null;
-  final whole = m.group(1) ?? '0';
+  final whole = (m.group(1) ?? '0').replaceAll(',', '');
   var frac = m.group(2) ?? m.group(3) ?? '';
   var roundUp = false;
   if (frac.length > scale) {

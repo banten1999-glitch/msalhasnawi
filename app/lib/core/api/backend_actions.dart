@@ -43,14 +43,19 @@ mixin BackendActions on BackendApi {
   }
 
   @override
-  Future<SheetStatus> sheetRepair() async {
-    final data = await call('sheet.repair', mutation: true);
+  Future<SheetStatus> sheetRepair({String? requestId}) async {
+    final data = await call('sheet.repair', mutation: true, requestId: requestId);
     return parseData(() => SheetStatus.fromJson(data));
   }
 
   @override
-  Future<SheetStatus> sheetConnect(String spreadsheet) async {
-    final data = await call('sheet.connect', payload: {'spreadsheet': spreadsheet.trim()}, mutation: true);
+  Future<SheetStatus> sheetConnect(String spreadsheet, {String? requestId}) async {
+    final data = await call(
+      'sheet.connect',
+      payload: {'spreadsheet': spreadsheet.trim()},
+      mutation: true,
+      requestId: requestId,
+    );
     return parseData(() => SheetStatus.fromJson(data));
   }
 
@@ -66,6 +71,7 @@ mixin BackendActions on BackendApi {
     required String name,
     required UserRole role,
     UserPermissions? permissions,
+    String? requestId,
   }) async {
     final data = await call(
       'users.add',
@@ -76,6 +82,7 @@ mixin BackendActions on BackendApi {
         if (permissions != null) 'permissions': permissions.toEditableJson(),
       },
       mutation: true,
+      requestId: requestId,
     );
     return parseData(() => AppUser.fromJson(_map(data['user'])));
   }
@@ -88,6 +95,7 @@ mixin BackendActions on BackendApi {
     UserRole? role,
     bool? active,
     UserPermissions? permissions,
+    String? requestId,
   }) async {
     final data = await call(
       'users.update',
@@ -100,6 +108,7 @@ mixin BackendActions on BackendApi {
         if (permissions != null) 'permissions': permissions.toEditableJson(),
       },
       mutation: true,
+      requestId: requestId,
     );
     return parseData(() => AppUser.fromJson(_map(data['user'])));
   }

@@ -40,6 +40,26 @@ void main() {
       expect(parseToMinor('1.2.3', 2), isNull);
     });
 
+    test('فواصل الآلاف تُقبل في مواضعها فقط، والفاصلة مكان العلامة العشرية تُرفض (F8)', () {
+      // «12,5» ليست 125: تعاد null ليظهر خطأ تحت الحقل بدل قيمة أكبر 10 مرات.
+      expect(parseToMinor('12,5', 3), isNull);
+      expect(parseToMinor('١٢٬٥', 3), isNull);
+      expect(parseToMinor('12,50', 2), isNull);
+      expect(parseToMinor('1,2,3', 0), isNull);
+      expect(parseToMinor(',123', 0), isNull);
+      expect(parseToMinor('1234,567', 0), isNull);
+      expect(parseToMinor('1.234,5', 1), isNull);
+      expect(parseToMinor('12 5', 0), isNull);
+      // التجميع الصحيح مقبول.
+      expect(parseToMinor('1,234.5', 1), 12345);
+      expect(parseToMinor('1,234', 0), 1234);
+      expect(parseToMinor('1,234,567.25', 2), 123456725);
+      expect(parseToMinor('٨٬٢٥٠٫٠٠', 2), 825000);
+      expect(parseToMinor(' 1,234 ', 0), 1234);
+      expect(parseToMinor('1 234', 0), 1234);
+      expect(parseToMinor('12٫5', 3), 12500);
+    });
+
     test('لا تقريب عشري: 0.1 + 0.2 تبقى دقيقة', () {
       expect(parseToMinor('0.1', 2)! + parseToMinor('0.2', 2)!, parseToMinor('0.3', 2));
     });

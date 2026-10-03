@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/app_scope.dart';
 import '../../core/api/api_exception.dart';
+import '../../core/api/request_id.dart';
 import '../../core/models/user.dart';
 import '../../theme/app_theme.dart';
 import '../../ui/ui.dart';
@@ -71,6 +72,10 @@ class _UserEditorState extends State<UserEditor> {
   /// عند CONFLICT: النسخة الحالية من الخادم لعرضها.
   AppUser? _conflictCurrent;
 
+  /// requestId للحفظ: يُعاد مع الحمولة نفسها عند إعادة المحاولة بعد فشل، فيعيد الخادم نتيجة المحاولة
+  /// الأولى إن كانت قد حُفظت بدل CONFLICT.
+  final _saveRequest = SubmissionRequestId();
+
   @override
   void dispose() {
     _name.dispose();
@@ -114,16 +119,30 @@ class _UserEditorState extends State<UserEditor> {
     }
     final roleChanged = _role != _base.role;
     final permsChanged = !samePermissions(_perms, _base.permissions);
+    final newName = name != _base.name ? name : null;
+    final newRole = roleChanged ? _role : null;
+    final newActive = _active != _base.active ? _active : null;
+    final newPerms = _role == UserRole.entry && (roleChanged || permsChanged) ? _perms : null;
+    final requestId = _saveRequest.idFor({
+      'id': _base.id,
+      'expectedVersion': _base.version,
+      'name': newName,
+      'role': newRole?.wire,
+      'active': newActive,
+      'permissions': newPerms?.toEditableJson(),
+    });
     setState(() => _saving = true);
     try {
       final updated = await AppScope.of(context).api.updateUser(
         id: _base.id,
         expectedVersion: _base.version,
-        name: name != _base.name ? name : null,
-        role: roleChanged ? _role : null,
-        active: _active != _base.active ? _active : null,
-        permissions: _role == UserRole.entry && (roleChanged || permsChanged) ? _perms : null,
+        name: newName,
+        role: newRole,
+        active: newActive,
+        permissions: newPerms,
+        requestId: requestId,
       );
+      _saveRequest.reset();
       if (!mounted) return;
       Navigator.of(context).pop(updated);
     } catch (e) {

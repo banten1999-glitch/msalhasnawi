@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../app/app_scope.dart';
+import '../../core/api/request_id.dart';
 import '../../core/format/numbers.dart';
 import '../../core/models/sheet_status.dart';
 import '../../theme/app_theme.dart';
@@ -35,6 +36,9 @@ class _SheetsTabState extends State<SheetsTab> {
   /// تنبيه الخادم بعد ربط ملف آخر.
   String? _connectWarning;
   bool _started = false;
+
+  /// requestId للإصلاح: يُعاد عند إعادة المحاولة بعد فشل حتى ينجح مرة.
+  final _repairRequest = SubmissionRequestId();
 
   @override
   void didChangeDependencies() {
@@ -73,6 +77,9 @@ class _SheetsTabState extends State<SheetsTab> {
 
   bool _opened(SheetStatus s) => s.configured && (s.title != null || s.sheets.isNotEmpty);
 
+  /// ربط ملف آخر للمدير الأساسي فقط (docs/API.md §6 sheet.connect).
+  bool get _canConnect => AppScope.of(context).auth.user?.isBootstrap == true;
+
   Future<void> _testConnection() async {
     setState(() {
       _busy = _Busy.test;
@@ -87,7 +94,9 @@ class _SheetsTabState extends State<SheetsTab> {
         _notice = (
           kind: BannerKind.warning,
           title: 'لا يوجد ملف مربوط',
-          message: 'الخادم يعمل لكن لم يُربط به ملف Google Sheets بعد. اضغط «ربط ملف…» في الأسفل.',
+          message: _canConnect
+              ? 'الخادم يعمل لكن لم يُربط به ملف Google Sheets بعد. اضغط «ربط ملف…» في الأسفل.'
+              : 'الخادم يعمل لكن لم يُربط به ملف Google Sheets بعد. اطلب من المدير الأساسي ربط الملف.',
         );
       } else if (!_opened(s)) {
         _notice = (
@@ -161,7 +170,8 @@ class _SheetsTabState extends State<SheetsTab> {
       _notice = null;
     });
     try {
-      final s = await AppScope.of(context).api.sheetRepair();
+      final s = await AppScope.of(context).api.sheetRepair(requestId: _repairRequest.idFor('sheet.repair'));
+      _repairRequest.reset();
       if (!mounted) return;
       setState(() {
         _status = s;
@@ -413,6 +423,7 @@ class _SheetsTabState extends State<SheetsTab> {
 
   Widget _changeCard(SheetStatus s) {
     final connected = s.configured;
+    final canConnect = _canConnect;
     return AppCard(
       color: UiColors.warningBg,
       borderColor: UiColors.amberBorder,
@@ -435,6 +446,14 @@ class _SheetsTabState extends State<SheetsTab> {
             'الربط بملف آخر لا ينقل البيانات القديمة تلقائيًا. بعد التغيير تقرأ كل الأجهزة من الملف الجديد فقط وتكتب فيه.',
             style: TextStyle(fontSize: 13.5, height: 1.55),
           ),
+          if (!canConnect) ...[
+            const SizedBox(height: 8),
+            const Text(
+              'ربط ملف آخر متاح للمدير الأساسي (صاحب الحساب) فقط، لأنه ينقل كل العمليات الجديدة إلى ذلك الملف. '
+              'اطلب منه ذلك إن لزم.',
+              style: TextStyle(fontSize: 13, height: 1.55, fontWeight: FontWeight.w600, color: AppColors.amber),
+            ),
+          ],
           const SizedBox(height: 10),
           Align(
             alignment: AlignmentDirectional.centerStart,
@@ -444,7 +463,7 @@ class _SheetsTabState extends State<SheetsTab> {
               variant: AppButtonVariant.secondary,
               foreground: AppColors.amber,
               borderColor: UiColors.amberBorder,
-              onPressed: _busy == _Busy.none ? _changeFile : null,
+              onPressed: _busy == _Busy.none && canConnect ? _changeFile : null,
             ),
           ),
         ],

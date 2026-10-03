@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rumman_calculator/core/api/api_exception.dart';
+import 'package:rumman_calculator/core/models/user.dart';
 import 'package:rumman_calculator/features/settings/change_sheet_dialog.dart';
 import 'package:rumman_calculator/features/settings/settings_screen.dart';
 import 'package:rumman_calculator/ui/app_button.dart';
@@ -141,6 +142,60 @@ void main() {
 
     expect(find.byType(ChangeSheetDialog), findsOneWidget);
     expect(find.textContaining('تعذّر فتح الملف. تأكد أن الرابط صحيح'), findsOneWidget);
+  });
+
+  testWidgets('F6: إعادة الربط بالرابط نفسه بعد خطأ شبكة ترسل requestId نفسه', (tester) async {
+    final api = FakeBackendApi()..sheetConnectError = const ApiException(ApiErrorCode.network, 'تعذّر الاتصال بالخادم.');
+    await pumpTestApp(tester, _screen(), api: api, auth: FakeAuthController());
+
+    await _tapVisible(tester, 'تغيير الملف…');
+    await tester.enterText(find.byType(TextField), 'NEWfileID_abcdefghijklmnop0123');
+    await tester.tap(find.byType(Checkbox));
+    await tester.pump();
+    await tester.tap(find.text('ربط الملف الجديد'));
+    await tester.pumpAndSettle();
+    expect(find.byType(ChangeSheetDialog), findsOneWidget);
+
+    api.sheetConnectError = null;
+    await tester.tap(find.text('ربط الملف الجديد'));
+    await tester.pumpAndSettle();
+    final calls = api.callsOf('sheet.connect');
+    expect(calls, hasLength(2));
+    expect(calls[0].requestId, isNotNull);
+    expect(calls[1].requestId, calls[0].requestId);
+    expect(find.byType(ChangeSheetDialog), findsNothing);
+  });
+
+  testWidgets('F6: إعادة «إصلاح الملف» بعد فشل ترسل requestId نفسه، والإصلاح التالي معرّفًا جديدًا', (tester) async {
+    final api = FakeBackendApi()
+      ..sheetRepairError = const ApiException(ApiErrorCode.lockTimeout, 'الخادم مشغول. أعد المحاولة بعد لحظات.');
+    await pumpTestApp(tester, _screen(), api: api, auth: FakeAuthController());
+
+    await _tapVisible(tester, 'إصلاح الملف');
+    api.sheetRepairError = null;
+    await _tapVisible(tester, 'إصلاح الملف');
+    await _tapVisible(tester, 'إصلاح الملف');
+    final ids = api.callsOf('sheet.repair').map((c) => c.requestId).toList();
+    expect(ids, hasLength(3));
+    expect(ids[0], isNotNull);
+    expect(ids[1], ids[0], reason: 'retry after LOCK_TIMEOUT');
+    expect(ids[2], isNot(ids[0]), reason: 'a new repair after success');
+  });
+
+  testWidgets('SEC-2: ربط ملف آخر للمدير الأساسي فقط؛ مدير آخر يرى الزر معطّلًا مع السبب', (tester) async {
+    final second = makeUser('US-0006', 'nadia.admin@gmail.com', 'نادية فؤاد', UserRole.admin, version: 2);
+    final api = FakeBackendApi();
+    await pumpTestApp(tester, _screen(), api: api, auth: FakeAuthController(user: second));
+
+    await tester.ensureVisible(find.text('تغيير الملف…'));
+    await tester.pumpAndSettle();
+    expect(_button(tester, 'تغيير الملف…').onPressed, isNull);
+    expect(find.textContaining('متاح للمدير الأساسي (صاحب الحساب) فقط'), findsOneWidget);
+    await tester.tap(find.text('تغيير الملف…'));
+    await tester.pumpAndSettle();
+    expect(find.byType(ChangeSheetDialog), findsNothing);
+    // الإصلاح متاح لكل مدير.
+    expect(_button(tester, 'إصلاح الملف').onPressed, isNotNull);
   });
 
   testWidgets('تبويب «إعدادات العمل» للعرض فقط', (tester) async {

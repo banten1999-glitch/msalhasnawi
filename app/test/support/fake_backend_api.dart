@@ -9,12 +9,15 @@ import 'sample_data.dart';
 
 /// استدعاء مسجّل في [FakeBackendApi].
 class FakeCall {
-  FakeCall(this.action, this.payload);
+  FakeCall(this.action, this.payload, {this.requestId});
   final String action;
   final Map<String, dynamic> payload;
 
+  /// requestId الذي مرّره التطبيق (null ⇒ يولّد الخادم الحقيقي معرّفًا جديدًا).
+  final String? requestId;
+
   @override
-  String toString() => 'FakeCall($action, $payload)';
+  String toString() => 'FakeCall($action, $payload${requestId == null ? '' : ', requestId: $requestId'})';
 }
 
 /// خادم وهمي للاختبارات: يعيد بيانات معدّة مسبقًا ويسجّل كل استدعاء.
@@ -73,8 +76,8 @@ class FakeBackendApi implements BackendApi {
   int count(String action) => calls.where((c) => c.action == action).length;
   List<FakeCall> callsOf(String action) => calls.where((c) => c.action == action).toList();
 
-  Future<void> _record(String action, [Map<String, dynamic> payload = const {}]) async {
-    calls.add(FakeCall(action, Map<String, dynamic>.of(payload)));
+  Future<void> _record(String action, [Map<String, dynamic> payload = const {}, String? requestId]) async {
+    calls.add(FakeCall(action, Map<String, dynamic>.of(payload), requestId: requestId));
     if (delay > Duration.zero) await Future<void>.delayed(delay);
   }
 
@@ -87,7 +90,7 @@ class FakeBackendApi implements BackendApi {
     bool mutation = false,
     String? requestId,
   }) async {
-    await _record(action, payload);
+    await _record(action, payload, requestId);
     if (action == 'coolers.list') {
       if (coolersError != null) _throw(coolersError!);
       return {'coolers': coolers};
@@ -129,8 +132,8 @@ class FakeBackendApi implements BackendApi {
   }
 
   @override
-  Future<SheetStatus> sheetRepair() async {
-    await _record('sheet.repair');
+  Future<SheetStatus> sheetRepair({String? requestId}) async {
+    await _record('sheet.repair', const {}, requestId);
     if (sheetRepairError != null) _throw(sheetRepairError!);
     final repaired = sheetRepairResult ?? repairedSheetStatus();
     sheetStatusResult = repaired;
@@ -138,8 +141,8 @@ class FakeBackendApi implements BackendApi {
   }
 
   @override
-  Future<SheetStatus> sheetConnect(String spreadsheet) async {
-    await _record('sheet.connect', {'spreadsheet': spreadsheet});
+  Future<SheetStatus> sheetConnect(String spreadsheet, {String? requestId}) async {
+    await _record('sheet.connect', {'spreadsheet': spreadsheet}, requestId);
     if (sheetConnectError != null) _throw(sheetConnectError!);
     final result = sheetConnectHandler?.call(spreadsheet) ?? connectedSheetStatus(spreadsheet);
     sheetStatusResult = result;
@@ -159,8 +162,9 @@ class FakeBackendApi implements BackendApi {
     required String name,
     required UserRole role,
     UserPermissions? permissions,
+    String? requestId,
   }) async {
-    await _record('users.add', {'email': email, 'name': name, 'role': role.wire});
+    await _record('users.add', {'email': email, 'name': name, 'role': role.wire}, requestId);
     if (addUserError != null) _throw(addUserError!);
     final user = AppUser(
       id: 'US-${(users.length + 1).toString().padLeft(4, '0')}',
@@ -183,6 +187,7 @@ class FakeBackendApi implements BackendApi {
     UserRole? role,
     bool? active,
     UserPermissions? permissions,
+    String? requestId,
   }) async {
     await _record('users.update', {
       'id': id,
@@ -191,7 +196,7 @@ class FakeBackendApi implements BackendApi {
       if (role != null) 'role': role.wire,
       if (active != null) 'status': active ? 'active' : 'disabled',
       if (permissions != null) 'permissions': permissions.toEditableJson(),
-    });
+    }, requestId);
     if (updateUserError != null) _throw(updateUserError!);
     final old = users.firstWhere((u) => u.id == id);
     final nextRole = role ?? old.role;

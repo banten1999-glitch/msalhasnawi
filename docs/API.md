@@ -23,7 +23,8 @@ Flutter app ──(Google Sign-In: ID token)──► Apps Script web app ──
     Set through `sheet.connect`.
   * `ALLOWED_CLIENT_IDS` — optional comma list overriding the built-in OAuth client IDs (section 3).
   * `SESSION_DAYS` — optional, default `7`.
-  * `LAST_WRITE_AT`, `LAST_ERROR` — bookkeeping written by the backend.
+  * `LAST_WRITE_AT`, `LAST_ERROR` — bookkeeping written by the backend. `LAST_ERROR` is shown to every admin, so
+    ID tokens, session tokens and `id_token=` values are redacted before it is stored.
 
 ## 2. Transport
 
@@ -82,6 +83,10 @@ All `message` strings are Arabic, name the field, and say how to fix it.
 
 ### `auth.login` — payload `{ "idToken": "<Google ID token>" }`
 
+0. Local pre-check (no UrlFetch quota spent; `auth.login` is public): the token must be a three-part base64url
+   JWT whose payload (signature not checked here) has `aud` in the allowed client IDs, a Google `iss` and a future
+   `exp`; otherwise `AUTH_INVALID_TOKEN` (`details.reason`: `malformed`/`audience`/`issuer`/`expired`).
+   tokeninfo (step 1) stays the authoritative check.
 1. `UrlFetchApp.fetch("https://oauth2.googleapis.com/tokeninfo?id_token=" + encodeURIComponent(idToken), {muteHttpExceptions: true})`.
    Reject (`AUTH_INVALID_TOKEN`) unless: HTTP 200; `aud` ∈ allowed client IDs; `iss` ∈ {`accounts.google.com`,
    `https://accounts.google.com`}; `email_verified` is `"true"`/`true`; `exp` (seconds) > now.
@@ -93,7 +98,8 @@ All `message` strings are Arabic, name the field, and say how to fix it.
 3. If the email equals `BOOTSTRAP_ADMIN_EMAIL` and no row exists, append one: role `مدير`, status `نشط`,
    all permission columns `نعم`, name = tokeninfo `name` or the email. If a row exists but is disabled or not
    admin, the bootstrap account is still treated as an active admin (break-glass) and the row is repaired.
-4. Missing row ⇒ `NOT_ALLOWED` (`reason: not_listed`). Status `معطّل` ⇒ `NOT_ALLOWED` (`reason: disabled`).
+4. Missing row ⇒ `NOT_ALLOWED` (`reason: not_listed`). Any status other than `نشط` (`معطّل`, blank or an unknown
+   value) ⇒ `NOT_ALLOWED` (`reason: disabled`); the message names the `الحالة` column and the value `نشط`.
 5. Issue a session and return `{ session, expiresAt, user }`. Audit-log the login? **No** (too noisy).
 
 ### Session token
@@ -134,7 +140,7 @@ Enum translation (sheet ⇄ API):
 | field | sheet values → API |
 |---|---|
 | role | مدير→admin · موظف إدخال→entry · مشاهدة فقط→viewer |
-| user status | نشط→active · معطّل→disabled |
+| user status | نشط→active · معطّل→disabled · blank/unknown→disabled (fails closed; the bootstrap admin is still active) |
 | cooler status | مفتوح→open · مقفّل→closed |
 | purchase / payment status | فعّالة→active · ملغاة→cancelled |
 | pay status | مدفوع→paid · جزئي→partial · غير مدفوع→unpaid |
@@ -195,6 +201,13 @@ IDs: `CL-`, `FR-`, `PU-`, `PK-`, `PD-`, `PY-`, `US-`, `AU-`, `IT-` + 4+ digit ze
 ```
   Period filters purchases by `occurredAt`, payments by `paidAt`, packaging by date; `season` starts at
   settings `بداية الموسم`. Cooler counts ignore the period. `coolerId` restricts everything to one cooler.
+  `paidPiasters` = active payments whose `paidAt` is in the period. The remaining figures describe the rows of the
+  period: `remainingFarmersPiasters` = Σ (value − all active payments) over the period's active purchases,
+  `remainingSuppliersPiasters` = the same over the period's approved packaging, `remainingPiasters` = their sum. So
+  they are never negative (a payment today for an older purchase lowers nothing in "today"); with `period: all`,
+  `remainingPiasters = purchaseValuePiasters + packagingApprovedPiasters − paidPiasters`.
+  A cooler row left by a failed `coolers.create` (compensated: `مقفّل`, no closing time, note `تعذّر إكمال الحفظ`)
+  is not a real cooler: it is excluded from cooler counts, `openCoolers`, `currentCooler` and `coolers.list`.
   `currentCooler` = the given cooler, else the open cooler with the latest opening time. `recent` = last 10
   across purchases/payments/packaging (cancelled included, labelled). Cache the result for 60 s keyed by
   params + data version (bumped on every write).
@@ -228,10 +241,10 @@ IDs: `CL-`, `FR-`, `PU-`, `PK-`, `PD-`, `PY-`, `US-`, `AU-`, `IT-` + 4+ digit ze
 
 | action | permission | payload → data |
 |---|---|---|
-| `coolers.create` | recordPurchases | `{ name?, carNo?, driver?, notes? }` → `{ cooler }` (status open, number = max+1) |
-| `coolers.close` | closeCoolers | `{ id, expectedVersion, clientPendingCount }` → `{ cooler }`. `clientPendingCount > 0` ⇒ `VALIDATION` ("عمليات بانتظار المزامنة"). Writes the «عند التقفيل» snapshot, closedAt/By, status `مقفّل`. Already closed ⇒ `COOLER_CLOSED`. |
+| `coolers.create` | recordPurchases | `{ name?, carNo?, driver?, notes? }` → `{ cooler }` (status open, number = max+1). Idempotent on `requestId` (stored in `مفتاح عدم التكرار`): a repeat returns the same cooler with `replayed: true`. |
+| `coolers.close` | closeCoolers | `{ id, expectedVersion, clientPendingCount }` → `{ cooler }`. `clientPendingCount > 0` ⇒ `VALIDATION` ("عمليات بانتظار المزامنة"). Writes the «عند التقفيل» snapshot, closedAt/By, status `مقفّل`. Already closed ⇒ `COOLER_CLOSED`. Closing again after a reopen replaces the snapshot with the figures of the latest close; the previous snapshot is kept in the audit row's previous values. |
 | `coolers.reopen` | reopenCoolers (admin) | `{ id, reason }` (reason required) → `{ cooler }`. Keeps the snapshot; audit action `إعادة فتح`. |
-| `farmers.create` | addFarmers | `{ name, phone?, village?, notes?, allowDuplicate? }` → `{ farmer }`. Same normalised name exists ⇒ `VALIDATION` field `name` unless `allowDuplicate`. |
+| `farmers.create` | addFarmers | `{ name, phone?, village?, notes?, allowDuplicate? }` → `{ farmer }`. Same normalised name exists ⇒ `VALIDATION` field `name` unless `allowDuplicate`. Idempotent on `requestId` (stored in `مفتاح عدم التكرار`): a repeat returns the same farmer with `replayed: true`. |
 | `farmers.update` | addFarmers | `{ id, expectedVersion, name?, phone?, village?, notes?, status? }` → `{ farmer }` |
 | `purchases.create` | recordPurchases (+ addFarmers when `newFarmerName`) | `{ coolerId, farmerId? , newFarmerName?, boxes, avgWeightGrams, weightMethod, sampleWeightsGrams?, tareGrams?, pricePerKgPiasters, occurredAt?, notes?, payment: { mode: "full"|"partial"|"none", amountPiasters?, method? } }` → `{ purchase, payment|null, farmer|null, replayed }`. Cooler must be open (`COOLER_CLOSED`). `payment.mode = full` records a payment equal to the value. Idempotent on `requestId` (stored in `مفتاح عدم التكرار`): a repeat returns the stored purchase with `replayed: true`. |
 | `purchases.update` | recordPurchases (+ editOthers if `createdBy` ≠ caller) | `{ id, expectedVersion, changes: { farmerId?, boxes?, avgWeightGrams?, weightMethod?, sampleWeightsGrams?, tareGrams?, pricePerKgPiasters?, occurredAt?, notes? } }` → `{ purchase }`. Cooler open; recompute value; if new value < paid ⇒ `VALIDATION`. Audit old/new values. |
@@ -248,7 +261,7 @@ IDs: `CL-`, `FR-`, `PU-`, `PK-`, `PD-`, `PY-`, `US-`, `AU-`, `IT-` + 4+ digit ze
 | `settings.update` | manageSettings | `{ businessName?, currencySymbol?, timezone?, moneyDecimals?, weightDecimals?, emptyBoxGrams?, seasonStart? }` → settings |
 | `sheet.status` | manageSettings | → `SheetStatus` (below). Read-only. |
 | `sheet.repair` | manageSettings | → `SheetStatus`. Creates missing sheets/columns and reapplies formatting **without deleting data** (reuses `buildDataSheet_` / `buildSummary_` from `sheets/setup.gs`). |
-| `sheet.connect` | manageSettings | `{ spreadsheet: "<url or id>" }` → `SheetStatus` + `warning` ("البيانات القديمة لا تُنقل تلقائيًا"). Verifies `openById` works before saving `SPREADSHEET_ID`. |
+| `sheet.connect` | manageSettings **and bootstrap admin only** | `{ spreadsheet: "<url or id>" }` → `SheetStatus` + `warning` ("البيانات القديمة لا تُنقل تلقائيًا"). Verifies `openById` works before saving `SPREADSHEET_ID`. Any other caller ⇒ `FORBIDDEN` (`details.permission: "manageSettings"`, `details.reason: "bootstrap_only"`), checked before the payload, so the connection account is never revealed to them. Reason: connecting another file moves all new data into a file someone else may own (section 1: only the owner's account touches the file). |
 
 `SheetStatus`: `{ configured, spreadsheetId, title, url, connectedAs, timezone, ok,
 sheets: [{ key, title, exists, rows, missingColumns: [], extraColumns: [] }], lastWriteAt, lastError: null | { at, message }, checkedAt }`.
@@ -262,7 +275,12 @@ id `AU-…`, time, user name (email), action label (إنشاء/تعديل/إلغ
 
 * **Idempotency**: every mutation's result is cached in `CacheService` under `req:<requestId>` for 6 h and
   returned verbatim on repeat (the client may retry freely with the same `requestId`). Creations also store
-  the `requestId` in `مفتاح عدم التكرار` so repeats are detected even after the cache expires.
+  the `requestId` in `مفتاح عدم التكرار` so repeats are detected even after the cache expires: purchases,
+  payments, packaging, coolers and farmers. (Users and item types are protected by their unique email / name
+  checks instead.) The coolers/farmers key columns were added after v1: a file without them keeps working with
+  cache-only idempotency, and `sheet.status` lists them as missing until `sheet.repair` adds them.
+  The client keeps the same `requestId` while it retries one submission (network error, timeout, `LOCK_TIMEOUT`)
+  with an unchanged payload, and uses a new one for a new or edited submission.
 * **Optimistic concurrency**: updates carry `expectedVersion`; mismatch ⇒ `CONFLICT`. Every write
   increments `الإصدار` and sets `آخر تعديل`/`عدّله` where the sheet has them.
 * **Locking**: all mutations hold the script lock for the whole read-validate-write cycle.

@@ -6,7 +6,8 @@ import '../../ui/money_text.dart';
 const dashboardPeriods = <(String, String)>[
   ('season', 'هذا الموسم'),
   ('today', 'اليوم'),
-  ('week', 'هذا الأسبوع'),
+  // الخادم يحسبها آخر 7 أيام حتى اليوم (لا أسبوعًا تقويميًا)، فيُسمّى كما يسميه الخادم.
+  ('week', 'آخر 7 أيام'),
   ('month', 'هذا الشهر'),
   ('all', 'الكل'),
 ];
@@ -17,7 +18,7 @@ String periodLabel(String key) =>
 /// عنوان قسم المؤشرات حسب الفترة.
 String periodSummaryTitle(String key) => switch (key) {
       'today' => 'ملخص اليوم',
-      'week' => 'ملخص هذا الأسبوع',
+      'week' => 'ملخص آخر 7 أيام',
       'month' => 'ملخص هذا الشهر',
       'all' => 'ملخص كل الفترات',
       _ => 'ملخص الموسم',

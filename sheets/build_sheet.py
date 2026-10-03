@@ -79,7 +79,8 @@ YES_NO = ["نعم", "لا"]
 SHEETS = [
     {
         "key": "coolers", "title": "البرادات", "tab": RED,
-        "desc": "بيانات كل براد وحالته. أعمدة «عند التقفيل» تُحفظ مرة واحدة لحظة التقفيل ولا تتغير بعدها.",
+        "desc": "بيانات كل براد وحالته. أعمدة «عند التقفيل» تُحفظ لحظة التقفيل ولا تغيّرها إعادة الفتح؛ "
+                "إن أُعيد تقفيل البراد تُستبدل بأرقام التقفيل الأخير، والأرقام السابقة محفوظة في «سجل التعديلات».",
         "freeze_cols": 2,
         "columns": [
             C("المعرّف", "id"), C("رقم البراد", "int"), C("الاسم / الوصف"), C("رقم السيارة", width=15),
@@ -93,6 +94,7 @@ SHEETS = [
             C("التعبئة عند التقفيل (ج.م)", "money"),
             C("إجمالي التكلفة عند التقفيل (ج.م)", "money", emphasis="bold"),
             C("ملاحظات", "long"), C("آخر تعديل", "dt"), C("عدّله"), C("الإصدار", "int", hidden=True),
+            C("مفتاح عدم التكرار", "id", hidden=True),
         ],
     },
     {
@@ -103,6 +105,7 @@ SHEETS = [
             C("المعرّف", "id"), C("رقم المزارع", "int"), C("الاسم", width=24), C("الهاتف", width=16),
             C("القرية / المنطقة", width=18), C("ملاحظات", "long"), C("الحالة", "enum", ["نشط", "موقوف"]),
             C("تاريخ الإضافة", "dt"), C("أضافه"), C("الإصدار", "int", hidden=True),
+            C("مفتاح عدم التكرار", "id", hidden=True),
         ],
     },
     {
@@ -331,7 +334,7 @@ def build_sample_rows():
     rows = {k: [] for k in SHEET}
     for fid, no, name, phone, village in FARMERS:
         rows["farmers"].append([fid, no, name, phone, village, None, "نشط", T(20 + min(no, 7), 9, 0),
-                                USERS["karim"], 1])
+                                USERS["karim"], 1, None])
 
     payments = []
     pay_no = 1
@@ -419,7 +422,7 @@ def build_sample_rows():
                     value / 100, paid / 100, (value - paid) / 100, pack / 100, (value + pack) / 100]
         rows["coolers"].append([cid, cno, name, car, driver, opened, status, USERS["admin"],
                                 closed, USERS["admin"] if closed else None, *snap, None,
-                                closed or opened, USERS["admin"], 1])
+                                closed or opened, USERS["admin"], 1, None])
 
     rows["users"] = [[uid, mail, name, role, st, *perms, T(25, 9, 0), USERS["admin"], None, 1]
                      for uid, mail, name, role, st, perms in SAMPLE_USERS]

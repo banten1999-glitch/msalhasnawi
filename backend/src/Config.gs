@@ -122,12 +122,23 @@ function cfgSessionSecret_() {
   return secret;
 }
 
-/** يسجل آخر خطأ غير متوقع في LAST_ERROR = {at, message}. لا يرمي أبدًا. */
+/**
+ * يحذف ما قد يكون اعتمادًا سريًا من نص يُحفظ أو يُعرض: قيمة id_token في الروابط، وأي رمز بصيغة JWT
+ * أو جلسة (أجزاء base64url تبدأ بـ eyJ = بداية JSON). LAST_ERROR يراه كل مدير، فلا يجوز أن يحمل رمزًا
+ * يمكن استعماله للدخول باسم صاحبه.
+ */
+function cfgRedact_(text) {
+  return String(text)
+    .replace(/id_token=[^\s&"'<>]+/g, 'id_token=<redacted>')
+    .replace(/eyJ[A-Za-z0-9_-]+={0,2}\.[A-Za-z0-9_-]+={0,2}(?:\.[A-Za-z0-9_-]+={0,2})?/g, '<redacted-token>');
+}
+
+/** يسجل آخر خطأ غير متوقع في LAST_ERROR = {at, message} بعد حذف الرموز السرية. لا يرمي أبدًا. */
 function cfgRecordError_(message) {
   try {
     let at;
     try { at = fmtIso_(new Date()); } catch (e) { at = new Date().toISOString(); }
-    cfgSet_(RMN_PROP.lastError, JSON.stringify({ at: at, message: String(message).slice(0, 1500) }));
+    cfgSet_(RMN_PROP.lastError, JSON.stringify({ at: at, message: cfgRedact_(message).slice(0, 1500) }));
   } catch (e) {
     // لا شيء: تسجيل الخطأ لا يجوز أن يُفشل الرد.
   }

@@ -2,6 +2,7 @@
  * Dashboard.gs — لوحة التحكم (dashboard.get).
  *
  * الفترة تصفّي المشتريات بتاريخ العملية، والدفعات بتاريخ الدفعة، والتعبئة بتاريخ الشراء.
+ * المتبقي = ما بقي على مشتريات الفترة وتعبئتها المعتمدة (بعد كل دفعاتها الفعّالة)، فلا يكون سالبًا.
  * عدد البرادات لا يتأثر بالفترة. coolerId يقصر كل شيء على براد واحد.
  * النتيجة تُحفظ في CacheService 60 ثانية بمفتاح يضم المدخلات ونسخة البيانات (تزيد مع كل كتابة).
  */
@@ -115,6 +116,7 @@ function dashboardCompute_(period, coolerId, now, tz) {
     k.boxes += x.boxes;
     k.weightGrams += x.totalWeightGrams;
     k.purchaseValuePiasters += x.valuePiasters;
+    k.remainingFarmersPiasters += x.remainingPiasters;
     if (x.farmerId && !farmers[x.farmerId]) {
       farmers[x.farmerId] = true;
       k.distinctFarmers++;
@@ -134,12 +136,13 @@ function dashboardCompute_(period, coolerId, now, tz) {
       status: x.status, statusLabel: RMN_STATUS_LABELS[x.status],
       _t: x._t, _c: cellDate_(r['تاريخ الإنشاء']),
     });
-    if (x.status === 'approved') k.packagingApprovedPiasters += x.completeTotalPiasters;
+    if (x.status === 'approved') {
+      k.packagingApprovedPiasters += x.completeTotalPiasters;
+      k.remainingSuppliersPiasters += x.remainingPiasters;
+    }
   });
 
   // الدفعات
-  let paidFarmers = 0;
-  let paidSuppliers = 0;
   stTable_('payments').rows.forEach(function (r) {
     if (!inScope(cellStr_(r['معرّف البراد']))) return;
     const x = paymentToApi_(r);
@@ -154,13 +157,11 @@ function dashboardCompute_(period, coolerId, now, tz) {
     });
     if (x.status !== 'active') return;
     k.paidPiasters += x.amountPiasters;
-    if (x.targetType === 'packaging') paidSuppliers += x.amountPiasters;
-    else paidFarmers += x.amountPiasters;
   });
 
-  k.remainingPiasters = k.purchaseValuePiasters + k.packagingApprovedPiasters - k.paidPiasters;
-  k.remainingFarmersPiasters = k.purchaseValuePiasters - paidFarmers;
-  k.remainingSuppliersPiasters = k.packagingApprovedPiasters - paidSuppliers;
+  // المتبقي = متبقي العمليات المعروضة في الفترة (قيمتها ناقص كل دفعاتها الفعّالة أيًّا كان تاريخ الدفعة)،
+  // لا «قيمة الفترة − مدفوع الفترة»: دفعة اليوم لعملية سابقة كانت تجعله سالبًا (قرار في العقد §6).
+  k.remainingPiasters = k.remainingFarmersPiasters + k.remainingSuppliersPiasters;
   k.avgPricePerKgPiasters = avgPricePerKg_(k.purchaseValuePiasters, k.weightGrams);
 
   // البراد الحالي والبرادات المفتوحة

@@ -93,6 +93,51 @@ void main() {
     expect(find.textContaining('أُضيف نور حسن'), findsOneWidget);
   });
 
+  testWidgets('F6: إعادة الإضافة بعد خطأ شبكة ترسل requestId نفسه، والإضافة التالية معرّفًا جديدًا', (tester) async {
+    final api = FakeBackendApi()
+      ..addUserError = const ApiException(
+        ApiErrorCode.network,
+        'انتهت مهلة الاتصال بالخادم. تحقق من الإنترنت ثم أعد المحاولة؛ لن تُسجَّل العملية مرتين.',
+      );
+    await pumpTestApp(tester, _screen(), api: api, auth: FakeAuthController());
+
+    await tester.enterText(_field('بريد Gmail'), 'nour.hassan@gmail.com');
+    await tester.enterText(_field('الاسم'), 'نور حسن');
+    await _tapVisible(tester, find.text('إضافة إلى القائمة المسموح بها'));
+    expect(find.textContaining('انتهت مهلة الاتصال بالخادم'), findsOneWidget);
+
+    // الخادم ربما حفظ الإضافة الأولى: الإعادة بالبيانات نفسها تحمل المعرّف نفسه.
+    api.addUserError = null;
+    await _tapVisible(tester, find.text('إضافة إلى القائمة المسموح بها'));
+    final calls = api.callsOf('users.add');
+    expect(calls, hasLength(2));
+    expect(calls[0].requestId, isNotNull);
+    expect(calls[1].requestId, calls[0].requestId);
+    expect(find.textContaining('أُضيف نور حسن'), findsOneWidget);
+
+    // إضافة مستخدم آخر بعد النجاح عملية جديدة.
+    await tester.enterText(_field('بريد Gmail'), 'salma.new@gmail.com');
+    await tester.enterText(_field('الاسم'), 'سلمى');
+    await _tapVisible(tester, find.text('إضافة إلى القائمة المسموح بها'));
+    final third = api.callsOf('users.add')[2];
+    expect(third.requestId, isNotNull);
+    expect(third.requestId, isNot(calls[0].requestId));
+  });
+
+  testWidgets('F6: تغيير البيانات بعد فشل يبدأ requestId جديدًا', (tester) async {
+    final api = FakeBackendApi()..addUserError = const ApiException(ApiErrorCode.network, 'تعذّر الاتصال بالخادم.');
+    await pumpTestApp(tester, _screen(), api: api, auth: FakeAuthController());
+
+    await tester.enterText(_field('بريد Gmail'), 'nour.hassan@gmail.com');
+    await tester.enterText(_field('الاسم'), 'نور');
+    await _tapVisible(tester, find.text('إضافة إلى القائمة المسموح بها'));
+    await tester.enterText(_field('الاسم'), 'نور حسن');
+    await _tapVisible(tester, find.text('إضافة إلى القائمة المسموح بها'));
+    final calls = api.callsOf('users.add');
+    expect(calls, hasLength(2));
+    expect(calls[1].requestId, isNot(calls[0].requestId));
+  });
+
   testWidgets('رفض الخادم للبريد يظهر تحت حقل البريد', (tester) async {
     final api = FakeBackendApi()
       ..addUserError = const ApiException(
@@ -202,6 +247,24 @@ void main() {
     expect(_inEditor(find.textContaining('عدّل مستخدم آخر بيانات هذا المستخدم')), findsOneWidget);
     await _tapVisible(tester, _inEditor(find.text('عرض البيانات الحالية')));
     expect(_inEditor(find.text('يوسف ناصر الدين')), findsOneWidget);
+  });
+
+  testWidgets('F6: إعادة حفظ التعديل بعد خطأ شبكة ترسل requestId نفسه', (tester) async {
+    final api = FakeBackendApi()..updateUserError = const ApiException(ApiErrorCode.network, 'تعذّر الاتصال بالخادم.');
+    await pumpTestApp(tester, _screen(), api: api, auth: FakeAuthController());
+
+    await _tapVisible(tester, find.text('يوسف ناصر'));
+    await _tapVisible(tester, _inEditor(find.text('مشاهدة فقط')));
+    await _tapVisible(tester, _inEditor(find.text('حفظ التغييرات')));
+    expect(find.byType(UserEditor), findsOneWidget);
+
+    api.updateUserError = null;
+    await _tapVisible(tester, _inEditor(find.text('حفظ التغييرات')));
+    final calls = api.callsOf('users.update');
+    expect(calls, hasLength(2));
+    expect(calls[0].requestId, isNotNull);
+    expect(calls[1].requestId, calls[0].requestId);
+    expect(find.byType(UserEditor), findsNothing);
   });
 
   testWidgets('تعديل حسابي يحدّث بيانات الدخول عبر auth.updateUser', (tester) async {

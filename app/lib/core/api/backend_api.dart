@@ -96,6 +96,7 @@ abstract class BackendApi {
     String? village,
     String? notes,
     bool? active,
+    bool allowDuplicate = false,
     String? requestId,
   });
 

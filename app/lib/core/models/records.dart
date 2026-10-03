@@ -318,6 +318,7 @@ class Payment {
     this.notes,
     this.createdAt,
     this.createdBy,
+    this.createdByEmail,
     this.version = 1,
   });
 
@@ -339,6 +340,7 @@ class Payment {
         notes: _s(j['notes']),
         createdAt: _s(j['createdAt']),
         createdBy: _s(j['createdBy']),
+        createdByEmail: _s(j['createdByEmail']),
         version: _in(j['version']) ?? 1,
       );
 
@@ -359,6 +361,7 @@ class Payment {
   final String? notes;
   final String? createdAt;
   final String? createdBy;
+  final String? createdByEmail;
   final int version;
 }
 
@@ -434,6 +437,7 @@ class PackagingSummary {
     this.notes,
     this.createdAt,
     this.createdBy,
+    this.createdByEmail,
     this.version = 1,
   });
 
@@ -455,6 +459,7 @@ class PackagingSummary {
         notes: _s(j['notes']),
         createdAt: _s(j['createdAt']),
         createdBy: _s(j['createdBy']),
+        createdByEmail: _s(j['createdByEmail']),
         version: _in(j['version']) ?? 1,
       );
 
@@ -481,6 +486,7 @@ class PackagingSummary {
   final String? notes;
   final String? createdAt;
   final String? createdBy;
+  final String? createdByEmail;
   final int version;
 }
 
@@ -546,6 +552,8 @@ class PackagingItem {
         if (quantity != null) 'quantity': quantity,
         'unit': unit,
         if (unitPricePiasters != null) 'unitPricePiasters': unitPricePiasters,
+        // الخادم يكتب ملاحظات العنصر من الطلب في كل حفظ، فنرسلها دائمًا حتى لا تُمسح.
+        if (notes != null) 'notes': notes,
       };
 }
 

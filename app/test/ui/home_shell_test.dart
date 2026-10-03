@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rumman_calculator/core/models/user.dart';
 import 'package:rumman_calculator/features/dashboard/dashboard_screen.dart';
+import 'package:rumman_calculator/features/farmers/farmers_screen.dart';
 import 'package:rumman_calculator/features/settings/settings_screen.dart';
 import 'package:rumman_calculator/features/shell/home_shell.dart';
 import 'package:rumman_calculator/features/shell/placeholder_screen.dart';
@@ -85,16 +86,18 @@ void main() {
     expect(find.text('إضافة مستخدم'), findsOneWidget);
   });
 
-  testWidgets('الأقسام غير المكتملة تعرض «قيد التنفيذ» دون بيانات', (tester) async {
-    final api = FakeBackendApi();
+  testWidgets('اختيار قسم من القائمة يفتحه ويميّزه', (tester) async {
+    final api = FakeBackendApi()
+      ..handlers['farmers.list'] = ((_) => {'farmers': <Object>[]})
+      ..handlers['purchases.list'] = ((_) => {'purchases': <Object>[]});
     await pumpTestApp(tester, const HomeShell(), api: api, auth: FakeAuthController());
     await _openDrawer(tester);
     await tester.tap(_inDrawer(find.text('المزارعون')));
     await tester.pumpAndSettle();
 
     expect(find.byType(Drawer), findsNothing);
-    expect(find.byType(SectionPlaceholder), findsOneWidget);
-    expect(find.text(kNotBuiltYetMessage), findsOneWidget);
+    expect(find.byType(FarmersScreen), findsOneWidget);
+    expect(find.text(kNotBuiltYetMessage), findsNothing);
     // العنوان في الشريط العلوي.
     expect(find.descendant(of: find.byType(AppBar), matching: find.text('المزارعون')), findsOneWidget);
 

@@ -174,22 +174,16 @@ class _FarmerEditorState extends State<FarmerEditor> {
           ...changed,
           if (allowDuplicate) 'allowDuplicate': true,
         };
-        final requestId = _request.idFor(payload);
-        if (allowDuplicate) {
-          // updateFarmer لا يرسل allowDuplicate، والخادم يقبله (docs/API.md §6 farmers.update).
-          final data = await scope.api.call('farmers.update', payload: payload, mutation: true, requestId: requestId);
-          saved = Farmer.fromJson((data['farmer'] as Map).cast<String, dynamic>());
-        } else {
-          saved = await scope.api.updateFarmer(
-            id: b.id,
-            expectedVersion: b.version,
-            name: changed['name'],
-            phone: changed['phone'],
-            village: changed['village'],
-            notes: changed['notes'],
-            requestId: requestId,
-          );
-        }
+        saved = await scope.api.updateFarmer(
+          id: b.id,
+          expectedVersion: b.version,
+          name: changed['name'],
+          phone: changed['phone'],
+          village: changed['village'],
+          notes: changed['notes'],
+          allowDuplicate: allowDuplicate,
+          requestId: _request.idFor(payload),
+        );
       }
       _request.reset();
       scope.changes.bump();

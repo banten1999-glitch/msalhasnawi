@@ -257,6 +257,7 @@ mixin BackendActions on BackendApi {
     String? village,
     String? notes,
     bool? active,
+    bool allowDuplicate = false,
     String? requestId,
   }) async {
     final data = await call(
@@ -270,6 +271,7 @@ mixin BackendActions on BackendApi {
         if (village != null) 'village': village.trim(),
         if (notes != null) 'notes': notes.trim(),
         if (active != null) 'status': active ? 'active' : 'inactive',
+        if (allowDuplicate) 'allowDuplicate': true,
       },
       mutation: true,
       requestId: requestId,

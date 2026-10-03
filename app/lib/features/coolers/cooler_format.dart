@@ -189,8 +189,23 @@ bool canPayPurchase(Purchase p, {required AppUser? user}) =>
 
 const _diacritics = '[\u064B-\u0670\u065F\u0640\u200B-\u200F\u202A-\u202E]';
 
+/// الأرقام العربية والفارسية إلى لاتينية دون حذف المسافات (normalizeDigits يحذفها).
+String _latinDigits(String s) {
+  final out = StringBuffer();
+  for (final r in s.runes) {
+    if (r >= 0x0660 && r <= 0x0669) {
+      out.writeCharCode(0x30 + r - 0x0660);
+    } else if (r >= 0x06F0 && r <= 0x06F9) {
+      out.writeCharCode(0x30 + r - 0x06F0);
+    } else {
+      out.writeCharCode(r);
+    }
+  }
+  return out.toString();
+}
+
 /// تطبيع الاسم كما في normText_ بالخادم: بلا تشكيل، الألف والياء والتاء المربوطة موحّدة.
-String normalizeName(String s) => normalizeDigits(s)
+String normalizeName(String s) => _latinDigits(s)
     .replaceAll(RegExp(_diacritics), '')
     .replaceAll(RegExp('[آأإٱ]'), 'ا')
     .replaceAll('ى', 'ي')
@@ -227,7 +242,8 @@ bool sameName(String a, String b) {
   return na.isNotEmpty && na == normalizeName(b);
 }
 
-/// أسماء قريبة قد تكون للشخص نفسه: احتواء، أو كلمة مشتركة (3 أحرف فأكثر)، أو اختلاف حرف أو حرفين.
+/// أسماء قريبة قد تكون للشخص نفسه: احتواء، أو كلمتان مشتركتان، أو اختلاف حرف أو حرفين.
+/// (الاسم الأول وحده لا يكفي: «محمد» مشترك بين كثيرين.)
 bool similarName(String a, String b) {
   final na = normalizeName(a);
   final nb = normalizeName(b);
@@ -235,12 +251,13 @@ bool similarName(String a, String b) {
   if (na == nb) return true;
   if (na.length >= 3 && nb.contains(na)) return true;
   if (nb.length >= 3 && na.contains(nb)) return true;
-  final ta = na.split(' ').where((t) => t.length >= 3 && t != 'عبد' && t != 'ابو').toSet();
-  final tb = nb.split(' ').where((t) => t.length >= 3 && t != 'عبد' && t != 'ابو').toSet();
-  if (ta.intersection(tb).isNotEmpty) return true;
+  Set<String> tokens(String s) => s.split(' ').where((t) => t.length >= 3 && !_fillerTokens.contains(t)).toSet();
+  if (tokens(na).intersection(tokens(nb)).length >= 2) return true;
   if (na.length >= 5 && nb.length >= 5 && _editDistance(na, nb) <= 2) return true;
   return false;
 }
+
+const _fillerTokens = {'عبد', 'ابو', 'الحاج', 'حاج'};
 
 /// مزارعون يطابقون نص البحث (الاسم أو الرقم أو القرية)، الأقرب أولًا.
 List<Farmer> searchFarmers(List<Farmer> farmers, String query, {int limit = 6}) {

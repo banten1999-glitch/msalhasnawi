@@ -78,7 +78,13 @@ void main() {
 
     testWidgets('«مشاهدة فقط» لا يرى أي زر إجراء ($where)', (tester) async {
       final api = _api(cooler: _closed14());
-      await pumpPage(tester, const CoolerDetailsScreen(coolerId: 'CL-0014'), api: api, size: size, user: sampleViewer());
+      await pumpPage(
+        tester,
+        const CoolerDetailsScreen(coolerId: 'CL-0014'),
+        api: api,
+        size: size,
+        user: sampleViewer(),
+      );
 
       expect(find.text('حسن البدري'), findsOneWidget);
       for (final label in [

@@ -16,8 +16,21 @@ const _avgLabel = 'المتوسط الصافي (كغ)';
 const _boxesLabel = 'عدد الصناديق';
 const _priceLabel = 'سعر الكيلو (ج.م)';
 
-Future<void> _openForm(WidgetTester tester, FakeBackendApi api, {Size size = phoneSize, DataChanges? changes, Outbox? outbox}) =>
-    pumpPage(tester, const PurchaseFormScreen(coolerId: 'CL-0014'), api: api, size: size, changes: changes, outbox: outbox);
+Future<void> _openForm(
+  WidgetTester tester,
+  FakeBackendApi api, {
+  Size size = phoneSize,
+  DataChanges? changes,
+  Outbox? outbox,
+}) =>
+    pumpPage(
+      tester,
+      const PurchaseFormScreen(coolerId: 'CL-0014'),
+      api: api,
+      size: size,
+      changes: changes,
+      outbox: outbox,
+    );
 
 Future<void> _pickFarmer(WidgetTester tester, String query, String name) async {
   await tester.enterText(fieldIn('المزارع'), query);

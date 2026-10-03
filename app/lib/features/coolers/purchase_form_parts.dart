@@ -376,7 +376,10 @@ class _SelectedFarmer extends StatelessWidget {
                 Row(
                   children: [
                     Flexible(
-                      child: Text(name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5, height: 1.4)),
+                      child: Text(
+                        name,
+                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5, height: 1.4),
+                      ),
                     ),
                     if (isNew) ...[
                       const SizedBox(width: 6),
@@ -447,7 +450,8 @@ class _SimilarNames extends StatelessWidget {
                     style: TextButton.styleFrom(
                       foregroundColor: AppColors.amber,
                       minimumSize: const Size(48, 44),
-                      textStyle: const TextStyle(fontFamily: AppFonts.body, fontWeight: FontWeight.w700, fontSize: 13.5),
+                      textStyle:
+                          const TextStyle(fontFamily: AppFonts.body, fontWeight: FontWeight.w700, fontSize: 13.5),
                     ),
                     child: Text('اختيار', semanticsLabel: 'اختيار ${f.name}'),
                   ),
@@ -569,7 +573,13 @@ Widget unitSuffix(String unit) => _UnitSuffix(unit);
 
 /// ملخص العينة: «متوسط القائم 13 كغ (2 صندوق) − الفارغ 1.9 كغ = 11.1 كغ صافي».
 class SampleSummary extends StatelessWidget {
-  const SampleSummary({super.key, required this.count, required this.grossMeanGrams, required this.tareGrams, this.netGrams});
+  const SampleSummary({
+    super.key,
+    required this.count,
+    required this.grossMeanGrams,
+    required this.tareGrams,
+    this.netGrams,
+  });
 
   final int count;
   final int? grossMeanGrams;

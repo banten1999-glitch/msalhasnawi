@@ -19,7 +19,8 @@ import 'cooler_format.dart';
 import 'cooler_widgets.dart';
 import 'purchase_form_parts.dart';
 
-/// نموذج شراء من مزارع. [purchase] != null ⇒ تعديل عملية موجودة؛ وإلا إضافة جديدة في [coolerId] (أو البراد المفتوح الحالي).
+/// نموذج شراء من مزارع. [purchase] != null ⇒ تعديل عملية موجودة؛ وإلا إضافة جديدة في [coolerId]
+/// (أو البراد المفتوح الحالي).
 ///
 /// الحساب حي أثناء الكتابة بأعداد صحيحة كما في الخادم (docs/API.md §5). الإضافة تمر عبر قائمة «بانتظار
 /// المزامنة» (outbox.submit) فتُحفظ على الجهاز إن انقطع الاتصال، والتعديل يرسل الحقول المعدّلة فقط.
@@ -411,7 +412,9 @@ class _PurchaseFormScreenState extends State<PurchaseFormScreen> {
         case PaymentMode.partial:
           final m = parseAmount(_payAmount.text, 2);
           if (m.empty) {
-            if (all) err['payment.amountPiasters'] = '«المبلغ المدفوع» مطلوب في الدفع الجزئي. اكتب المبلغ المدفوع الآن.';
+            if (all) {
+              err['payment.amountPiasters'] = '«المبلغ المدفوع» مطلوب في الدفع الجزئي. اكتب المبلغ المدفوع الآن.';
+            }
           } else if (m.invalid) {
             err['payment.amountPiasters'] = '«المبلغ المدفوع» رقم غير صحيح. اكتبه بالجنيه، مثل 2000 أو 1500.50.';
           } else if (m.value! <= 0) {
@@ -496,6 +499,8 @@ class _PurchaseFormScreenState extends State<PurchaseFormScreen> {
 
   /// يُستدعى عند تعديل حقل: يمسح خطأ الخادم عنه ويعيد الحساب.
   void _edited(List<String> keys) {
+    // الفارغ الذي كتبه المستخدم لا يُستبدل بقيمة الإعدادات إن وصلت متأخرة.
+    if (keys.contains('tareGrams')) _tareTouched = true;
     setState(() {
       for (final k in keys) {
         _serverErrors.remove(k);
@@ -994,7 +999,9 @@ class _PurchaseFormScreenState extends State<PurchaseFormScreen> {
         label: 'البراد',
         child: PickerField(
           text: c?.title ?? 'اختر البراد',
-          subtitle: c == null ? null : [openedLine(c), operationsLabel(c.purchases)].where((s) => s.isNotEmpty).join(' · '),
+          subtitle: c == null
+              ? null
+              : [openedLine(c), operationsLabel(c.purchases)].where((s) => s.isNotEmpty).join(' · '),
           onTap: canPick ? _pickCooler : null,
           errorText: _err(e, 'coolerId'),
           trailing: canPick || c == null

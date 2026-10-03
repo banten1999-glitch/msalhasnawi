@@ -490,7 +490,8 @@ class _CoolerDetailsScreenState extends State<CoolerDetailsScreen> {
               padding: EdgeInsets.symmetric(vertical: 8),
               child: Text('لا توجد مشتريات تعبئة مرتبطة بهذا البراد.', style: UiText.muted),
             ),
-          for (final k in list) _PackagingRow(packaging: k, onTap: () => AppRoutes.openPackaging(context, packagingId: k.id)),
+          for (final k in list)
+            _PackagingRow(packaging: k, onTap: () => AppRoutes.openPackaging(context, packagingId: k.id)),
           if (perms.packaging) ...[
             const SizedBox(height: 10),
             AppButton(
@@ -532,7 +533,12 @@ class _HeaderCard extends StatelessWidget {
                 header: true,
                 child: Text(
                   c.title,
-                  style: const TextStyle(fontFamily: AppFonts.display, fontSize: 22, fontWeight: FontWeight.w700, height: 1.35),
+                  style: const TextStyle(
+                    fontFamily: AppFonts.display,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    height: 1.35,
+                  ),
                 ),
               ),
             ),
@@ -579,7 +585,8 @@ String _measureLine(Purchase p) =>
     '${formatCount(p.boxes)} صندوق × ${kgExact(p.avgWeightGrams)} كغ = ${kgExact(p.totalWeightGrams)} كغ'
     ' · ${formatMoney(p.pricePerKgPiasters)} ج.م/كغ';
 
-String _byLine(Purchase p) => [whenText(p.occurredAt), if (p.createdBy != null) p.createdBy!].where((s) => s.isNotEmpty).join(' · ');
+String _byLine(Purchase p) =>
+    [whenText(p.occurredAt), if (p.createdBy != null) p.createdBy!].where((s) => s.isNotEmpty).join(' · ');
 
 Widget _payChip(Purchase p, {bool dense = true}) {
   if (!p.active) return StatusChip(StatusKind.cancelled, label: 'ملغاة', dense: dense);
@@ -688,7 +695,13 @@ class _PurchaseTile extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              MoneyText(p.valuePiasters, fontSize: 15, unitFontSize: 11.5, strike: muted, color: muted ? AppColors.inkMuted : AppColors.ink),
+              MoneyText(
+                p.valuePiasters,
+                fontSize: 15,
+                unitFontSize: 11.5,
+                strike: muted,
+                color: muted ? AppColors.inkMuted : AppColors.ink,
+              ),
               const SizedBox(height: 4),
               _payChip(p),
               if (p.active && p.remainingPiasters > 0 && p.payStatus != PayStatus.paid)
@@ -713,7 +726,12 @@ class _PurchaseTile extends StatelessWidget {
 
 /// جدول عمليات الشراء (الشاشات العريضة).
 class _PurchasesTable extends StatelessWidget {
-  const _PurchasesTable({required this.header, required this.purchases, required this.actionsFor, required this.onAction});
+  const _PurchasesTable({
+    required this.header,
+    required this.purchases,
+    required this.actionsFor,
+    required this.onAction,
+  });
 
   final Widget header;
   final List<Purchase> purchases;

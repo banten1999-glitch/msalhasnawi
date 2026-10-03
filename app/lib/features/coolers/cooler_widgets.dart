@@ -114,7 +114,8 @@ class MoneyFigure extends StatelessWidget {
         children: [
           Text(label, style: UiText.small.copyWith(color: color == AppColors.ink ? AppColors.inkMuted : color)),
           MoneyText(piasters, fontSize: fontSize, color: color, unitFontSize: 12),
-          if (note != null) Text(note!, style: const TextStyle(fontSize: 11.5, color: AppColors.inkMuted, height: 1.35)),
+          if (note != null)
+            Text(note!, style: const TextStyle(fontSize: 11.5, color: AppColors.inkMuted, height: 1.35)),
         ],
       ),
     );
@@ -257,7 +258,8 @@ class _ReasonDialogState extends State<_ReasonDialog> {
       return;
     }
     if (reason.length > PurchaseLimits.reasonMax) {
-      setState(() => _fieldError = '«${widget.fieldLabel}» أطول من المسموح (${PurchaseLimits.reasonMax} حرفًا). اختصره.');
+      setState(() =>
+          _fieldError = '«${widget.fieldLabel}» أطول من المسموح (${PurchaseLimits.reasonMax} حرفًا). اختصره.');
       return;
     }
     setState(() {

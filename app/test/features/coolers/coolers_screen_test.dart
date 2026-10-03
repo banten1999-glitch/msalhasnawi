@@ -8,7 +8,6 @@ import 'package:rumman_calculator/features/coolers/create_cooler_sheet.dart';
 import 'package:rumman_calculator/ui/labeled_field.dart';
 
 import '../../support/fake_auth_controller.dart';
-import '../../support/fake_backend_api.dart';
 import '../../support/sample_data.dart';
 import '../../support/test_app.dart';
 import 'coolers_test_support.dart';

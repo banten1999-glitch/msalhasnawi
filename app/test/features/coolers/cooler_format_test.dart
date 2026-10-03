@@ -97,7 +97,8 @@ void main() {
   group('الصلاحيات على العملية', () {
     final own = Purchase.fromJson(purchaseJson(createdByEmail: 'karim.abdallah.eg@gmail.com'));
     final other = Purchase.fromJson(purchaseJson());
-    final cancelled = Purchase.fromJson(purchaseJson(status: 'cancelled', createdByEmail: 'karim.abdallah.eg@gmail.com'));
+    final cancelled =
+        Purchase.fromJson(purchaseJson(status: 'cancelled', createdByEmail: 'karim.abdallah.eg@gmail.com'));
 
     test('موظف الإدخال يعدّل عمليته فقط في براد مفتوح', () {
       final karim = sampleEntry();

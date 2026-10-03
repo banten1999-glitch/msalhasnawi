@@ -116,7 +116,8 @@ class _CloseCoolerScreenState extends State<CloseCoolerScreen> {
 
     final pending = scope.outbox.pendingForCooler(c.id);
     if (pending > 0) {
-      setState(() => _closeError = 'وصلت ${pendingLabel(pending)} لهذا البراد أثناء التأكيد. انتظر المزامنة ثم أعد التقفيل.');
+      setState(() => _closeError =
+          'وصلت ${pendingLabel(pending)} لهذا البراد أثناء التأكيد. انتظر المزامنة ثم أعد التقفيل.');
       return;
     }
     final messenger = ScaffoldMessenger.of(context);
@@ -281,7 +282,8 @@ class _CloseCoolerScreenState extends State<CloseCoolerScreen> {
       ...warnings,
       review,
       if (_closeError != null) InlineBanner(kind: BannerKind.error, title: 'لم يُقفَّل البراد', message: _closeError!),
-      if (blocked && canClose) const Text('زر التقفيل معطّل حتى تصل كل العمليات بانتظار المزامنة.', style: UiText.small),
+      if (blocked && canClose)
+        const Text('زر التقفيل معطّل حتى تصل كل العمليات بانتظار المزامنة.', style: UiText.small),
       buttons,
     ];
 

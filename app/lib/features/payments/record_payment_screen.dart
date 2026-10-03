@@ -72,7 +72,12 @@ class _RecordPaymentScreenState extends State<RecordPaymentScreen> {
     super.didChangeDependencies();
     if (_started) return;
     _started = true;
-    unawaited(_load());
+    // دون صلاحية لا داعي لتحميل شيء: تظهر رسالة الصلاحية فقط.
+    if (AppScope.of(context).auth.user?.permissions.recordPayments ?? false) {
+      unawaited(_load());
+    } else {
+      _loading = false;
+    }
   }
 
   @override

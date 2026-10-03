@@ -281,32 +281,24 @@ class _FarmersScreenState extends State<FarmersScreen> {
     ];
 
     final Widget body;
-    if (visible.isEmpty) {
-      body = ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: _padding(wide),
-        children: [_center(wide, Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [...header, _noMatch(canEdit)]))],
-      );
-    } else if (wide) {
+    if (visible.isEmpty || wide) {
+      // الجدول (الشاشات العريضة) أو «لا نتائج»: عنصر واحد تحت العنوان والأدوات.
+      final tail = visible.isEmpty
+          ? _noMatch(canEdit)
+          : _FarmersTable(
+              farmers: visible,
+              figures: _figures,
+              canEdit: canEdit,
+              busy: _busy,
+              onOpen: _open,
+              onEdit: _edit,
+              onSetActive: _setActive,
+            );
       body = ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: _padding(wide),
         children: [
-          _center(
-            wide,
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [...header, _FarmersTable(
-                farmers: visible,
-                figures: _figures,
-                canEdit: canEdit,
-                busy: _busy,
-                onOpen: _open,
-                onEdit: _edit,
-                onSetActive: _setActive,
-              )],
-            ),
-          ),
+          _center(wide, Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [...header, tail])),
         ],
       );
     } else {
@@ -350,7 +342,8 @@ class _FarmersScreenState extends State<FarmersScreen> {
     );
   }
 
-  EdgeInsets _padding(bool wide) => wide ? const EdgeInsets.fromLTRB(32, 24, 32, 40) : const EdgeInsets.fromLTRB(16, 4, 16, 24);
+  EdgeInsets _padding(bool wide) =>
+      wide ? const EdgeInsets.fromLTRB(32, 24, 32, 40) : const EdgeInsets.fromLTRB(16, 4, 16, 24);
 
   Widget _center(bool wide, Widget child) => ResponsiveCenter(maxWidth: wide ? 1400 : 720, child: child);
 
@@ -390,9 +383,12 @@ class _FarmersScreenState extends State<FarmersScreen> {
             busyLabel: 'جارٍ التحديث',
             onPressed: _load,
           ),
-          if (canEdit) AppButton(label: 'إضافة مزارع', icon: Icons.person_add_alt_1_outlined, height: 48, onPressed: _add),
+          if (canEdit) _addButton(),
         ],
       );
+
+  Widget _addButton() =>
+      AppButton(label: 'إضافة مزارع', icon: Icons.person_add_alt_1_outlined, height: 48, onPressed: _add);
 
   Widget _includeInactiveToggle() =>
       ToggleFilterButton(label: 'إظهار الموقوفين', value: _includeInactive, onChanged: _setIncludeInactive);
@@ -431,8 +427,7 @@ class _FarmersScreenState extends State<FarmersScreen> {
         children: [
           sort,
           _includeInactiveToggle(),
-          if (canEdit)
-            AppButton(label: 'إضافة مزارع', icon: Icons.person_add_alt_1_outlined, height: 48, onPressed: _add),
+          if (canEdit) _addButton(),
         ],
       ),
     ];
@@ -667,7 +662,10 @@ class _FarmerCard extends StatelessWidget {
                           runSpacing: 4,
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
-                            Text(f.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, height: 1.4)),
+                            Text(
+                              f.name,
+                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, height: 1.4),
+                            ),
                             if (!f.active) _statusChip(f),
                           ],
                         ),

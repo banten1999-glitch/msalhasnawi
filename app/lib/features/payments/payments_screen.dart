@@ -550,8 +550,16 @@ class _PaymentTile extends StatelessWidget {
               Container(
                 width: 40,
                 height: 40,
-                decoration: BoxDecoration(color: p.active ? bg : UiColors.greyBg, borderRadius: BorderRadius.circular(12)),
-                child: Icon(icon, size: 22, color: p.active ? fg : AppColors.inkMuted, semanticLabel: p.payeeType.label),
+                decoration: BoxDecoration(
+                  color: p.active ? bg : UiColors.greyBg,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  size: 22,
+                  color: p.active ? fg : AppColors.inkMuted,
+                  semanticLabel: p.payeeType.label,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -755,7 +763,10 @@ class _DuesGroup extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(d.payeeName, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5, height: 1.4)),
+                      Text(
+                        d.payeeName,
+                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5, height: 1.4),
+                      ),
                       Text(
                         '${d.payeeType.label} · ${operationsLabel(d.operations.length)} · '
                         'القيمة ${formatMoney(d.valuePiasters)} · المدفوع ${formatMoney(d.paidPiasters)}',

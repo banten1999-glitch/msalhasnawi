@@ -88,16 +88,20 @@
 
 ### 8. ابنِ التطبيق بالرابط
 
-أعطِ الرابط لمن يبني التطبيق، أو ابنِه بنفسك من مجلد `app`:
+الرابط المنشور حاليًا مضمّن في التطبيق (`app/lib/config/app_config.dart`، الثابت `deployedApiUrl`)،
+فيكفي البناء دون إضافات:
 
 ```bash
 cd app
-flutter build web     --release --dart-define=API_URL=https://script.google.com/macros/s/XXXX/exec
-flutter build apk     --release --dart-define=API_URL=https://script.google.com/macros/s/XXXX/exec
-flutter build ipa     --release --dart-define=API_URL=https://script.google.com/macros/s/XXXX/exec
+flutter build web --release
+flutter build apk --release
+flutter build ipa --release
 ```
 
-وللتجربة على جهاز متصل: `flutter run --dart-define=API_URL=<الرابط>`.
+للتجربة على جهاز متصل: `flutter run`.
+
+إذا نشرت الخادم لاحقًا برابط جديد (نشر جديد بدل «إصدار جديد» للنشر نفسه)، عدّل `deployedApiUrl`،
+أو مرّر الرابط عند البناء: `--dart-define=API_URL=<الرابط الجديد>`.
 
 ### 9. أول دخول
 

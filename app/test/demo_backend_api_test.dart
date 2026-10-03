@@ -298,9 +298,19 @@ void main() {
     for (final p in purchases) {
       expect(p['totalWeightGrams'], (p['boxes'] as int) * (p['avgWeightGrams'] as int));
     }
+    // purchases.create أصبح متاحًا في الوضع التجريبي: الحمولة الفارغة خطأ تحقق على المزارع مثل الخادم.
     await expectLater(
       api.call('purchases.create', mutation: true, requestId: 'x'),
-      throwsA(isA<ApiException>().having((e) => e.code, 'code', ApiErrorCode.unknownAction)),
+      throwsA(isA<ApiException>()
+          .having((e) => e.code, 'code', ApiErrorCode.validation)
+          .having((e) => e.field, 'field', 'farmerId')),
+    );
+    // الإجراء غير الموجود في العقد يبقى UNKNOWN_ACTION.
+    await expectLater(
+      api.call('purchases.delete', mutation: true, requestId: 'x'),
+      throwsA(isA<ApiException>()
+          .having((e) => e.code, 'code', ApiErrorCode.unknownAction)
+          .having((e) => e.field, 'field', 'action')),
     );
   });
 }

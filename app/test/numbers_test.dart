@@ -92,9 +92,9 @@ void main() {
     });
 
     test('formatLocalTimestamp يعرض وقت العمل كما هو', () {
-      expect(formatLocalTimestamp('2026-10-02T06:40:00+03:00'), '2026-10-02 · 06:40 ص');
-      expect(formatLocalTimestamp('2026-10-02T16:12:00+03:00', withDate: false), '04:12 م');
-      expect(formatLocalTimestamp('2026-10-02T00:05:00+03:00', withDate: false), '12:05 ص');
+      expect(formatLocalTimestamp('2026-10-02T06:40:00+03:00'), '2026-10-02 · 06:40\u00A0ص');
+      expect(formatLocalTimestamp('2026-10-02T16:12:00+03:00', withDate: false), '04:12\u00A0م');
+      expect(formatLocalTimestamp('2026-10-02T00:05:00+03:00', withDate: false), '12:05\u00A0ص');
       expect(formatLocalTimestamp(null), '');
     });
   });

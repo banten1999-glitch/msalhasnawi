@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 import 'app_button.dart';
+import 'directional_icon.dart';
 
 /// نافذة تأكيد بسيطة. تعيد true فقط عند الضغط على زر التأكيد.
 Future<bool> showConfirmDialog(
@@ -12,6 +13,9 @@ Future<bool> showConfirmDialog(
   String cancelLabel = 'إلغاء',
   bool destructive = false,
   IconData? icon,
+
+  /// يعكس الأيقونة في الاتجاه من اليمين لليسار (مثل أيقونة الخروج)، كما في القائمة الجانبية.
+  bool mirrorIcon = false,
 }) async {
   final result = await showDialog<bool>(
     context: context,
@@ -19,7 +23,11 @@ Future<bool> showConfirmDialog(
       backgroundColor: Colors.white,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      icon: icon == null ? null : Icon(icon, color: destructive ? AppColors.error : AppColors.pomegranate, size: 32),
+      icon: icon == null
+          ? null
+          : mirrorIcon
+              ? DirectionalIcon(icon, color: destructive ? AppColors.error : AppColors.pomegranate, size: 32)
+              : Icon(icon, color: destructive ? AppColors.error : AppColors.pomegranate, size: 32),
       title: Text(
         title,
         textAlign: TextAlign.center,

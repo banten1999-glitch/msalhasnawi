@@ -51,7 +51,7 @@ void main() {
 
     // آخر نشاط.
     expect(find.textContaining('تعذّرت الكتابة لأن خدمة Google'), findsOneWidget);
-    expect(find.text('تُضاف الناقصة فقط. لا تُحذف أو تُستبدل أي بيانات موجودة.'), findsOneWidget);
+    expect(find.text('يُنشئ الصفحات والأعمدة الناقصة فقط. لا تُحذف أو تُستبدل أي بيانات موجودة.'), findsOneWidget);
   });
 
   testWidgets('«فحص الأعمدة» يعيد قراءة الحالة ويبرز المشكلات', (tester) async {
@@ -65,11 +65,11 @@ void main() {
     expect(find.textContaining('أعمدة «رقم الفاتورة» في «مشتريات التعبئة»؛ صفحة «سجل التعديلات»'), findsOneWidget);
   });
 
-  testWidgets('«إنشاء الصفحات والأعمدة الناقصة» يستدعي الإصلاح ويعرض الحالة الجديدة', (tester) async {
+  testWidgets('«إصلاح الملف» يستدعي الإصلاح ويعرض الحالة الجديدة', (tester) async {
     final api = FakeBackendApi();
     await pumpTestApp(tester, _screen(), api: api, auth: FakeAuthController());
 
-    await _tapVisible(tester, 'إنشاء الصفحات والأعمدة الناقصة');
+    await _tapVisible(tester, 'إصلاح الملف');
 
     expect(api.count('sheet.repair'), 1);
     expect(find.text('اكتمل الإصلاح'), findsOneWidget);
@@ -85,7 +85,7 @@ void main() {
       );
     await pumpTestApp(tester, _screen(), api: api, auth: FakeAuthController());
 
-    await _tapVisible(tester, 'إنشاء الصفحات والأعمدة الناقصة');
+    await _tapVisible(tester, 'إصلاح الملف');
     expect(find.text('تعذّر إصلاح الملف'), findsOneWidget);
     expect(find.text('الملف مشغول بعملية حفظ أخرى. انتظر لحظات ثم أعد المحاولة.'), findsOneWidget);
     expect(find.text('عمود ناقص: «رقم الفاتورة»'), findsOneWidget);

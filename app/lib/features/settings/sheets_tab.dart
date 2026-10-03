@@ -140,7 +140,7 @@ class _SheetsTabState extends State<SheetsTab> {
     return (
       kind: BannerKind.warning,
       title: 'ينقص الملف ${_things(problems.length)}',
-      message: '${parts.join('؛ ')}. اضغط «إنشاء الصفحات والأعمدة الناقصة» لإضافتها دون حذف أي بيانات.',
+      message: '${parts.join('؛ ')}. اضغط «إصلاح الملف» لإضافتها دون حذف أي بيانات.',
     );
   }
 
@@ -344,8 +344,9 @@ class _SheetsTabState extends State<SheetsTab> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   AppButton(
-                    label: 'إنشاء الصفحات والأعمدة الناقصة',
-                    icon: Icons.add,
+                    // الاسم نفسه الذي تذكره رسائل الخادم («اضغط إصلاح الملف»).
+                    label: 'إصلاح الملف',
+                    icon: Icons.build_outlined,
                     variant: AppButtonVariant.success,
                     busy: _busy == _Busy.repair,
                     busyLabel: 'جارٍ الإصلاح',
@@ -353,7 +354,7 @@ class _SheetsTabState extends State<SheetsTab> {
                   ),
                   const SizedBox(height: 6),
                   const Text(
-                    'تُضاف الناقصة فقط. لا تُحذف أو تُستبدل أي بيانات موجودة.',
+                    'يُنشئ الصفحات والأعمدة الناقصة فقط. لا تُحذف أو تُستبدل أي بيانات موجودة.',
                     textAlign: TextAlign.center,
                     style: UiText.small,
                   ),

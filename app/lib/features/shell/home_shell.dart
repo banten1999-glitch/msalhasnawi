@@ -43,6 +43,7 @@ class _HomeShellState extends State<HomeShell> {
       confirmLabel: 'تسجيل الخروج',
       destructive: true,
       icon: Icons.logout,
+      mirrorIcon: true,
     );
     if (ok) await auth.signOut();
   }

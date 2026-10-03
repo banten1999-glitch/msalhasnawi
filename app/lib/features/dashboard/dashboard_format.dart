@@ -48,8 +48,8 @@ String relativeDateTime(String? iso, {DateTime? now}) {
   final today = now ?? DateTime.now();
   final date = iso.substring(0, 10);
   final time = formatLocalTimestamp(iso, withDate: false);
-  if (date == _ymd(today)) return 'اليوم $time';
-  if (date == _ymd(today.subtract(const Duration(days: 1)))) return 'أمس $time';
+  if (date == _ymd(today)) return 'اليوم\u00A0$time';
+  if (date == _ymd(today.subtract(const Duration(days: 1)))) return 'أمس\u00A0$time';
   return '${formatArabicDate(iso, withYear: date.substring(0, 4) != today.year.toString())} · $time';
 }
 

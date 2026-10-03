@@ -46,7 +46,7 @@ void main() {
     expect(findRichText('1,151,904.00'), findsOneWidget);
     expect(find.text('مجموع الدفعات المسجلة فقط'), findsOneWidget);
     expect(findRichText('137,218.40'), findsOneWidget);
-    expect(find.text('للمزارعين 122,218.40 · للموردين 15,000.00'), findsOneWidget);
+    expect(find.text('للمزارعين\u00A0122,218.40 · للموردين\u00A015,000.00'), findsOneWidget);
     expect(findRichText('15.02 ج.م/كغ'), findsOneWidget);
 
     // آخر العمليات بشاراتها

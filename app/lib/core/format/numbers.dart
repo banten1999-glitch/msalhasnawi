@@ -97,6 +97,7 @@ String formatLocalTimestamp(String? iso, {bool withDate = true}) {
   final minute = iso.substring(14, 16);
   final suffix = hour < 12 ? 'ص' : 'م';
   final h12 = hour % 12 == 0 ? 12 : hour % 12;
-  final time = '${h12.toString().padLeft(2, '0')}:$minute $suffix';
+  // مسافة غير قابلة للكسر: لا ينفصل «ص/م» عن الساعة في آخر السطر.
+  final time = '${h12.toString().padLeft(2, '0')}:$minute\u00A0$suffix';
   return withDate ? '$date · $time' : time;
 }

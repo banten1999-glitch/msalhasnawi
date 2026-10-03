@@ -116,13 +116,26 @@ class AppUser {
 
   bool get isAdmin => role == UserRole.admin;
 
-  /// الحرفان الأولان من الاسم لصورة الحساب.
-  String get initials {
+  /// حرفان لصورة الحساب: أول حرف من الاسم الأول وأول حرف من اسم العائلة.
+  ///
+  /// تُتجاهل «ال» في أول اسم العائلة (محمد الحسناوي ← م ح)، ويُعامل الاسم المركّب مثل «عبد الله»
+  /// كاسم واحد (كريم عبد الله ← ك ع).
+  String get initials => initialsOf(name);
+
+  static const _compoundPrefixes = {'عبد', 'أبو', 'ابو', 'أبي', 'ابي', 'بن', 'ابن', 'آل'};
+
+  static String initialsOf(String name) {
     final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
-    String first(String s) => String.fromCharCode(s.runes.first);
     if (parts.isEmpty) return '؟';
+    String first(String s) => String.fromCharCode(s.runes.first);
     if (parts.length == 1) return first(parts.first);
-    return '${first(parts.first)} ${first(parts.last)}';
+    var family = parts.last;
+    if (parts.length >= 3 && _compoundPrefixes.contains(parts[parts.length - 2])) {
+      family = parts[parts.length - 2];
+    } else if (family.startsWith('ال') && family.runes.length > 3) {
+      family = family.substring(2);
+    }
+    return '${first(parts.first)} ${first(family)}';
   }
 
   Map<String, dynamic> toJson() => {

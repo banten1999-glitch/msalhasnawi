@@ -476,8 +476,9 @@ List<KpiTile> seasonKpiTiles(DashboardKpis k) => [
 
 int totalDue(DashboardKpis k) => k.purchaseValuePiasters + k.packagingApprovedPiasters;
 
+/// مسافة غير قابلة للكسر بين الوصف ورقمه حتى لا ينفصلا على سطرين.
 String remainingSplit(DashboardKpis k) =>
-    'للمزارعين ${formatMoney(k.remainingFarmersPiasters)} · للموردين ${formatMoney(k.remainingSuppliersPiasters)}';
+    'للمزارعين\u00A0${formatMoney(k.remainingFarmersPiasters)} · للموردين\u00A0${formatMoney(k.remainingSuppliersPiasters)}';
 
 /// مؤشرات المال كمربعات (الشاشات العريضة).
 List<KpiTile> moneyKpiTiles(DashboardKpis k) => [

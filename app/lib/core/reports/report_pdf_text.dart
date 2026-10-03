@@ -15,51 +15,73 @@ import 'package:pdf/widgets.dart' as pw;
 // ignore: implementation_imports
 import 'package:pdf/src/pdf/font/bidi_utils.dart' as pdf_bidi;
 
-/// يجهّز النص للخط ومحرك PDF: المسافات غير القابلة للكسر وأسطر النص تصبح مسافة عادية، وتُحذف علامات
-/// الاتجاه والمحارف الخفية التي لا يحتويها الخط.
-String pdfSafeText(String s) => s
-    .replaceAll(RegExp('[   \t\r\n]'), ' ')
-    .replaceAll(RegExp('[​-‏‪-‮⁦-⁩﻿]'), '')
-    .replaceAll(RegExp(' {2,}'), ' ')
-    .trim();
+/// المسافة غير القابلة للكسر: تربط كلمتين لا يُفصل بينهما في آخر السطر (مثل «06:40 ص» في formatLocalTimestamp).
+final _nbsp = String.fromCharCode(0xA0);
+
+/// يجهّز النص للخط ومحرك PDF: أسطر النص وعلامات الجدولة والمسافات الخاصة تصبح مسافة عادية، وتُحذف علامات
+/// الاتجاه والمحارف الخفية التي لا يحتويها الخط. [keepNbsp]: تُبقى المسافة غير القابلة للكسر لتقسيم الأسطر.
+String pdfSafeText(String s, {bool keepNbsp = false}) {
+  var out = s
+      .replaceAll(RegExp('[\u202F\u2007\t\r\n]'), ' ')
+      .replaceAll(RegExp('[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]'), '');
+  if (!keepNbsp) out = out.replaceAll(_nbsp, ' ');
+  return out.replaceAll(RegExp(' {2,}'), ' ').trim();
+}
+
+/// هل في النص حروف تُكتب من اليمين (عربية أو عبرية، بما فيها أشكال العرض)؟
+bool _hasRtl(String s) {
+  for (final c in s.codeUnits) {
+    if ((c >= 0x0590 && c <= 0x08FF) || (c >= 0xFB1D && c <= 0xFDFF) || (c >= 0xFE70 && c <= 0xFEFC)) return true;
+  }
+  return false;
+}
 
 /// الترتيب المرئي (من اليسار لليمين) المشكَّل لسطر منطقي واحد بلا أسطر جديدة.
 ///
-/// logicalToVisual يعكس ترتيب الكلمات في آخر خطوة ليناسب تخطيط rtl في المكتبة؛ نعيده هنا لأننا نرسم ltr.
+/// نص بلا حروف عربية (أرقام، «+1,000.00»، «F-120») يبقى كما هو. أما logicalToVisual فيعكس ترتيب الكلمات في
+/// آخر خطوة ليناسب تخطيط rtl في المكتبة؛ نعيده هنا لأننا نرسم ltr.
 String visualLine(String logical) {
-  if (logical.isEmpty) return '';
-  return pdf_bidi.logicalToVisual(logical).split(' ').reversed.join(' ');
+  final s = logical.replaceAll(_nbsp, ' ');
+  if (!_hasRtl(s)) return s;
+  return pdf_bidi.logicalToVisual(s).split(' ').reversed.join(' ');
+}
+
+/// يقسم النص المنطقي إلى أسطر لا يزيد عرض أيٍّ منها عن [maxWidth] (إلا كلمة واحدة أطول منه).
+/// [measure]: عرض نص مرئي بالنقاط. الكلمات المربوطة بمسافة غير قابلة للكسر لا تُفصل.
+List<String> breakRtlLines(String logical, double maxWidth, double Function(String visual) measure) {
+  final space = measure(' ');
+  final lines = <String>[];
+  var current = <String>[];
+  var used = 0.0;
+  for (final word in logical.split(' ')) {
+    if (word.isEmpty) continue;
+    final w = measure(visualLine(word));
+    if (current.isNotEmpty && used + space + w > maxWidth + 0.01) {
+      lines.add(current.join(' '));
+      current = [word];
+      used = w;
+    } else {
+      used += (current.isEmpty ? 0 : space) + w;
+      current.add(word);
+    }
+  }
+  if (current.isNotEmpty) lines.add(current.join(' '));
+  return lines;
 }
 
 /// نص عربي (أو مختلط) بمسافات صحيحة، يلتف على عدة أسطر بالترتيب الصحيح من اليمين.
 ///
 /// [align]: محاذاة كل سطر داخل عرض الفقرة (right = بداية السطر العربي).
 pw.Widget rtlText(String text, {required pw.TextStyle style, pw.TextAlign align = pw.TextAlign.right, int? maxLines}) {
-  final logical = pdfSafeText(text);
+  final logical = pdfSafeText(text, keepNbsp: true);
   return pw.LayoutBuilder(builder: (context, constraints) {
     final resolved = pw.Theme.of(context).defaultTextStyle.merge(style);
     final font = resolved.font!.getFont(context);
     final size = resolved.fontSize!;
-    double width(String visual) => visual.isEmpty ? 0 : font.stringMetrics(visual).advanceWidth * size;
+    double measure(String visual) => visual.isEmpty ? 0 : font.stringMetrics(visual).advanceWidth * size;
 
     final maxWidth = constraints != null && constraints.hasBoundedWidth ? constraints.maxWidth : double.infinity;
-    final space = width(' ');
-    final lines = <String>[];
-    var current = <String>[];
-    var used = 0.0;
-    for (final word in logical.split(' ')) {
-      if (word.isEmpty) continue;
-      final w = width(visualLine(word));
-      if (current.isNotEmpty && used + space + w > maxWidth + 0.01) {
-        lines.add(current.join(' '));
-        current = [word];
-        used = w;
-      } else {
-        used += (current.isEmpty ? 0 : space) + w;
-        current.add(word);
-      }
-    }
-    if (current.isNotEmpty) lines.add(current.join(' '));
+    final lines = breakRtlLines(logical, maxWidth, measure);
     if (maxLines != null && lines.length > maxLines) lines.removeRange(maxLines, lines.length);
 
     pw.Widget line(String l) =>

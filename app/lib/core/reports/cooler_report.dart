@@ -180,8 +180,8 @@ class CoolerReport {
       title: 'عمليات الشراء',
       table: ReportTable(
         columns: [
-          const ReportColumn('الوقت', flex: 1.5),
-          const ReportColumn('المزارع', flex: 1.6),
+          const ReportColumn('الوقت', flex: 1.75),
+          const ReportColumn('المزارع', flex: 1.45),
           const ReportColumn('الصناديق', numeric: true, flex: 0.8),
           const ReportColumn('متوسط الصندوق ($kReportWeightUnit)', numeric: true, flex: 0.9),
           const ReportColumn('الوزن ($kReportWeightUnit)', numeric: true),

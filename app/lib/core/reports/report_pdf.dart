@@ -10,6 +10,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import 'report_document.dart';
+import 'report_pdf_text.dart';
 
 /// خطوط التقرير. في التطبيق: [ReportFonts.fromAssets]؛ في الاختبارات: [ReportFonts.fromBytes] من ملف.
 class ReportFonts {
@@ -104,12 +105,9 @@ Future<pw.Document> buildReportPdfDocument(ReportDocument doc, {required String 
 
 // ---------------------------------------------------------------- النص
 
-/// يجهّز النص للخط ومحرك PDF: المسافات غير القابلة للكسر تصبح مسافة عادية (حتى يُرتَّب «06:40 ص»
-/// صحيحًا)، وتُحذف علامات الاتجاه والمحارف الخفية التي لا يحتويها الخط.
-String _t(String s) => s
-    .replaceAll(RegExp('[\u00A0\u202F\u2007]'), ' ')
-    .replaceAll(RegExp('[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]'), '');
+String _t(String s) => pdfSafeText(s);
 
+/// كل نصوص التقرير تمر من هنا: rtlText يضمن المسافات الصحيحة بين الكلمات العربية (راجع report_pdf_text.dart).
 pw.Widget _text(
   String s, {
   double size = 9,
@@ -118,16 +116,11 @@ pw.Widget _text(
   pw.TextAlign align = pw.TextAlign.right,
   int? maxLines,
 }) =>
-    pw.Text(
-      _t(s),
-      textAlign: align,
+    rtlText(
+      s,
+      align: align,
       maxLines: maxLines,
-      style: pw.TextStyle(
-        fontSize: size,
-        fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
-        color: color,
-        lineSpacing: 1,
-      ),
+      style: pw.TextStyle(fontSize: size, fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal, color: color),
     );
 
 pw.TextAlign _align(ReportAlign a) => switch (a) {
@@ -276,18 +269,31 @@ pw.Widget _sectionTitle(String title) => pw.Container(
       child: _text(title, size: 11.5, bold: true),
     );
 
-List<pw.Widget> _section(ReportSection s) => [
-      pw.SizedBox(height: 12),
-      _sectionTitle(s.title),
-      if (s.entries.isNotEmpty) pw.Column(children: _grid([for (final e in s.entries) _entryTile(e, compact: true)], 4)),
-      if (s.table != null) _table(s.table!),
-      if (s.notes.isNotEmpty) pw.SizedBox(height: 4),
-      for (final n in s.notes)
-        pw.Padding(
-          padding: const pw.EdgeInsets.only(top: 2),
-          child: _text('• $n', size: 7.5, color: _label),
-        ),
-    ];
+/// أقصى عدد صفوف لجدول يبقى مع عنوان قسمه وملاحظاته في صفحة واحدة؛ الجداول الأكبر تنقسم على الصفحات.
+const _keepTogetherRows = 12;
+
+List<pw.Widget> _section(ReportSection s) {
+  final t = s.table;
+  final head = [
+    _sectionTitle(s.title),
+    if (s.entries.isNotEmpty) pw.Column(children: _grid([for (final e in s.entries) _entryTile(e, compact: true)], 4)),
+  ];
+  final notes = [
+    if (s.notes.isNotEmpty) pw.SizedBox(height: 4),
+    for (final n in s.notes)
+      pw.Padding(
+        padding: const pw.EdgeInsets.only(top: 2),
+        child: _text('• $n', size: 7.5, color: _label),
+      ),
+  ];
+  pw.Widget together(List<pw.Widget> children) =>
+      pw.Inseparable(child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: children));
+  // قسم صغير لا يُفصل عنوانه عن جدوله؛ الكبير يبقى عنوانه وبطاقاته معًا وينقسم جدوله مع تكرار صف العناوين.
+  if (t == null || t.rows.length <= _keepTogetherRows) {
+    return [pw.SizedBox(height: 12), together([...head, if (t != null) _table(t), ...notes])];
+  }
+  return [pw.SizedBox(height: 12), together(head), _table(t), ...notes];
+}
 
 pw.Widget _table(ReportTable t) {
   if (t.rows.isEmpty) {

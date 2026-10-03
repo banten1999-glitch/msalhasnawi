@@ -134,7 +134,10 @@ void main() {
       expect(cancelled.muted, isTrue);
       expect(cancelled.cells.last.text, 'ملغاة');
       expect(table.rows.where((r) => r.muted), hasLength(1));
-      expect(totalsRow(section(report.toDocument(), 'عمليات الشراء')).sublist(6, 9), ['33,451.79', '20,000.00', '13,451.79']);
+      expect(
+        totalsRow(section(report.toDocument(), 'عمليات الشراء')).sublist(6, 9),
+        ['33,451.79', '20,000.00', '13,451.79'],
+      );
     });
 
     test('الدفعات: الملغاة لا تُحتسب، والمجموع حسب نوع المستفيد', () {
@@ -187,7 +190,11 @@ void main() {
       final doc = report.toDocument();
       final labels = [
         ...doc.summary.map((e) => e.label),
-        for (final s in doc.sections) ...[s.title, ...s.entries.map((e) => e.label), ...?s.table?.columns.map((c) => c.title)],
+        for (final s in doc.sections) ...[
+          s.title,
+          ...s.entries.map((e) => e.label),
+          ...?s.table?.columns.map((c) => c.title),
+        ],
       ];
       expect(labels.where((l) => l.contains('ربح') || l.contains('أرباح')), isEmpty);
     });
@@ -300,7 +307,10 @@ void main() {
 
     test('مورد واحد: مطابقة الاسم دون مسافات زائدة', () {
       final one = SupplierReport.build(
-        packaging: [...cooler14Packaging(), packaging('PK-0006', no: 'P-0006', supplier: 'آخر', status: PackagingStatus.approved, total: 1)],
+        packaging: [
+          ...cooler14Packaging(),
+          packaging('PK-0006', no: 'P-0006', supplier: 'آخر', status: PackagingStatus.approved, total: 1),
+        ],
         supplier: 'مصنع الكرتون ',
         generatedAt: generatedAt,
       );

@@ -74,7 +74,10 @@ class ReportLoader {
     ]);
     final farmer = (r[0] as List<Farmer>).where((f) => f.id == farmerId).firstOrNull;
     if (farmer == null) {
-      throw const ApiException(ApiErrorCode.notFound, 'المزارع غير موجود. ربما حُذف من الملف؛ حدّث القائمة وأعد المحاولة.');
+      throw const ApiException(
+        ApiErrorCode.notFound,
+        'المزارع غير موجود. ربما حُذف من الملف؛ حدّث القائمة وأعد المحاولة.',
+      );
     }
     return FarmerStatement.build(
       farmer: farmer,

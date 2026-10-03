@@ -67,7 +67,11 @@ Future<Uint8List> buildReportPdf(ReportDocument doc, {required String businessNa
 }
 
 /// مثل [buildReportPdf] لكنه يعيد المستند قبل الحفظ (للاختبارات: عدد الصفحات بعد save).
-Future<pw.Document> buildReportPdfDocument(ReportDocument doc, {required String businessName, ReportFonts? fonts}) async {
+Future<pw.Document> buildReportPdfDocument(
+  ReportDocument doc, {
+  required String businessName,
+  ReportFonts? fonts,
+}) async {
   final f = fonts ?? await ReportFonts.fromAssets();
   final pdf = pw.Document(
     title: _t(doc.title),

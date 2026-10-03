@@ -172,7 +172,10 @@ void main() {
 
   test('تقرير الفترة: كل القراءات اللازمة', () async {
     final r = await loader.periodReport(from: DateTime(2026, 10, 2), to: DateTime(2026, 10, 2));
-    expect(api.callsOf('purchases.list').single.payload, {'from': '2026-10-02', 'to': '2026-10-02', 'includeCancelled': true});
+    expect(
+      api.callsOf('purchases.list').single.payload,
+      {'from': '2026-10-02', 'to': '2026-10-02', 'includeCancelled': true},
+    );
     expect(api.callsOf('payments.list').single.payload, isEmpty);
     expect(api.callsOf('packaging.list').single.payload, isEmpty);
     expect(api.callsOf('coolers.list').single.payload, {'status': 'all'});

@@ -5,8 +5,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rumman_calculator/core/models/records.dart';
 import 'package:rumman_calculator/core/reports/cooler_report.dart';
 import 'package:rumman_calculator/core/reports/farmer_statement.dart';
+import 'package:rumman_calculator/core/reports/period_report.dart';
 import 'package:rumman_calculator/core/reports/report_document.dart';
 import 'package:rumman_calculator/core/reports/report_pdf.dart';
+import 'package:rumman_calculator/core/reports/supplier_report.dart';
 
 import 'report_fixtures.dart';
 
@@ -71,6 +73,28 @@ void main() {
     final bytes = await buildReportPdf(doc, businessName: 'حاسبة الحسناوي', fonts: fonts);
     expect(ascii.decode(bytes.sublist(0, 4)), '%PDF');
     _maybeWrite('farmer-1.pdf', bytes);
+  });
+
+  test('تقرير الموردين وتقرير الفترة يُصدَّران PDF', () async {
+    final supplier = SupplierReport.build(
+      packaging: cooler14Packaging(),
+      details: cooler14PackagingDetails(),
+      generatedAt: generatedAt,
+    ).toDocument();
+    final period = PeriodReport.build(
+      from: DateTime(2026, 10, 1),
+      to: DateTime(2026, 10, 3),
+      purchases: [...cooler14Purchases(), ...farmer1Purchases().where((p) => p.coolerNo == 13)],
+      payments: cooler14Payments(),
+      packaging: cooler14Packaging(),
+      coolers: [cooler14()],
+      generatedAt: generatedAt,
+    ).toDocument();
+    for (final (name, doc) in [('suppliers.pdf', supplier), ('period.pdf', period)]) {
+      final bytes = await buildReportPdf(doc, businessName: 'حاسبة الحسناوي', fonts: fonts);
+      expect(ascii.decode(bytes.sublist(0, 4)), '%PDF');
+      _maybeWrite(name, bytes);
+    }
   });
 
   test('جدول كبير ينقسم على عدة صفحات', () async {

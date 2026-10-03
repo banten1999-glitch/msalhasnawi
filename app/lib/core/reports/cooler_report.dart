@@ -161,7 +161,11 @@ class CoolerReport {
         if (packagingTotals.latePiasters > 0)
           ReportEntry('منها تكلفة متأخرة', ReportCell.money(packagingTotals.latePiasters), unit: money),
         ReportEntry('إجمالي تكلفة البراد', ReportCell.money(totalCostPiasters), unit: money, highlight: true),
-        ReportEntry('متوسط سعر الكيلو', ReportCell.money(totals.avgPricePerKgPiasters), unit: '$money/$kReportWeightUnit'),
+        ReportEntry(
+          'متوسط سعر الكيلو',
+          ReportCell.money(totals.avgPricePerKgPiasters),
+          unit: '$money/$kReportWeightUnit',
+        ),
       ],
       sections: [
         _purchasesSection(),

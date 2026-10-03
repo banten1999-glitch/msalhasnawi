@@ -114,7 +114,8 @@ class SupplierReport {
         ReportEntry.text('الفترة', dateRangeText(from, to)),
       ],
       summary: [
-        if (!_single) ReportEntry('عدد الموردين', ReportCell.count(groups.where((g) => g.totals.approvedCount > 0).length)),
+        if (!_single)
+          ReportEntry('عدد الموردين', ReportCell.count(groups.where((g) => g.totals.approvedCount > 0).length)),
         ReportEntry('مشتريات معتمدة', ReportCell.count(t.approvedCount)),
         ReportEntry('إجمالي المعتمد', ReportCell.money(t.approvedPiasters), unit: m),
         if (t.latePiasters > 0) ReportEntry('منها تكلفة متأخرة', ReportCell.money(t.latePiasters), unit: m),

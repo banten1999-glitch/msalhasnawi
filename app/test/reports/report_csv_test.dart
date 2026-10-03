@@ -18,10 +18,17 @@ void main() {
       ReportSection(
         title: 'العمليات',
         table: ReportTable(
-          columns: const [ReportColumn('المزارع'), ReportColumn('الوزن (كغ)', numeric: true), ReportColumn('القيمة', numeric: true)],
+          columns: const [
+            ReportColumn('المزارع'),
+            ReportColumn('الوزن (كغ)', numeric: true),
+            ReportColumn('القيمة', numeric: true),
+          ],
           rows: [
             ReportRow([const ReportCell('حسن'), ReportCell.weight(2718200), ReportCell.money(123456789)]),
-            ReportRow([const ReportCell('=HYPERLINK("x")'), ReportCell.weight(550000), ReportCell.money(-5000)], muted: true),
+            ReportRow(
+              [const ReportCell('=HYPERLINK("x")'), ReportCell.weight(550000), ReportCell.money(-5000)],
+              muted: true,
+            ),
           ],
           totals: [const ReportCell('الإجمالي'), ReportCell.weight(3268200), ReportCell.money(123451789)],
         ),

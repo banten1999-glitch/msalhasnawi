@@ -61,7 +61,8 @@ void main() {
     expect(find.text('سبب الإلغاء: سُجّلت مرتين بالخطأ'), findsOneWidget);
     expect(find.text('تسجيل دفعة'), findsOneWidget);
     // الملغاة لا تُلغى مرة أخرى.
-    await tester.scrollUntilVisible(find.text('D-0001 · نقدًا · 1 أكتوبر 2026 · 10:00\u00A0ص'), 200);
+    await tester.scrollUntilVisible(find.text('D-0001 · نقدًا · 1 أكتوبر 2026 · 10:00\u00A0ص'), 200,
+        scrollable: _mainScroll());
     expect(find.text('إلغاء الدفعة'), findsWidgets);
   });
 

@@ -127,3 +127,26 @@ String formatLocalTimestamp(String? iso, {bool withDate = true}) {
   final time = '${h12.toString().padLeft(2, '0')}:$minute\u00A0$suffix';
   return withDate ? '$date · $time' : time;
 }
+
+/// وقت يختاره المستخدم ← نص يرسله التطبيق للخادم: «2026-10-02 06:40».
+///
+/// دون إزاحة: الخادم يفسّره بالمنطقة الزمنية للعمل (الإعدادات)، فيبقى الوقت كما رآه المستخدم على الشاشة
+/// مهما كانت منطقة الجهاز. أرسل null بدلًا منه حين يبقى «الآن» حتى يستخدم الخادم وقته الفعلي.
+String toWallClockText(DateTime t) {
+  String two(int v) => v.toString().padLeft(2, '0');
+  return '${t.year}-${two(t.month)}-${two(t.day)} ${two(t.hour)}:${two(t.minute)}';
+}
+
+/// عكس [toWallClockText] للجزء المحلي من طابع ISO القادم من الخادم (دون تحويل منطقة).
+DateTime? parseWallClock(String? iso) {
+  if (iso == null) return null;
+  final m = RegExp(r'^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})').firstMatch(iso);
+  if (m == null) return null;
+  return DateTime(
+    int.parse(m.group(1)!),
+    int.parse(m.group(2)!),
+    int.parse(m.group(3)!),
+    int.parse(m.group(4)!),
+    int.parse(m.group(5)!),
+  );
+}
